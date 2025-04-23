@@ -11,15 +11,16 @@
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
+      width: 100%;
+      height: 100%;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f3f4f6;
       color: #1f2937;
-      padding: 1rem;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      overflow: hidden;
     }
 
     .container {
@@ -189,7 +190,6 @@
 
     function renderTraySummary() {
       traySummary.innerHTML = "";
-
       for (let i = 1; i <= 3; i++) {
         const item = document.createElement("div");
         item.className = `tray-item ${currentTray === i ? "active" : ""}`;
@@ -255,7 +255,39 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", initializeUI);
+    // Fullscreen logic
+    function requestFullscreen() {
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      } else if (el.msRequestFullscreen) {
+        el.msRequestFullscreen();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initializeUI();
+      requestFullscreen();
+    });
+
+    // Prevent ESC key from exiting fullscreen
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+      }
+
+      // Allow exit with Ctrl + Shift + Q
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "q") {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+    });
+
+    // Disable context menu
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
   </script>
 </body>
 </html>
