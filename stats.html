@@ -1,579 +1,718 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System Monitor</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <style>
-    :root {
-      --bg-primary: #f8f9fa;
-      --bg-secondary: #ffffff;
-      --text-primary: #333333;
-      --text-secondary: #6c757d;
-      --accent: #4f46e5;
-      --danger: #ef4444;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --border: #e5e7eb;
-      --shadow: rgba(0, 0, 0, 0.1);
-      --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
-
-    .dark-theme {
-      --bg-primary: #111827;
-      --bg-secondary: #1f2937;
-      --text-primary: #f3f4f6;
-      --text-secondary: #9ca3af;
-      --border: #374151;
-      --shadow: rgba(0, 0, 0, 0.3);
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      transition: background-color 0.3s, color 0.3s;
-      padding: 1.5rem;
-      min-height: 100vh;
-    }
-
-    .dashboard {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .title {
-      font-size: 1.75rem;
-      font-weight: 700;
-    }
-
-    .theme-toggle {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    .theme-toggle:hover {
-      background: var(--accent);
-      color: white;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .card {
-      background: var(--bg-secondary);
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-      box-shadow: var(--card-shadow);
-      border: 1px solid var(--border);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 15px -3px var(--shadow);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .card-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .card-content {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .stat-label {
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
-
-    .stat-value {
-      font-weight: 600;
-    }
-
-    .progress-container {
-      width: 100%;
-      height: 0.5rem;
-      background-color: var(--border);
-      border-radius: 1rem;
-      overflow: hidden;
-      margin-top: 0.5rem;
-    }
-
-    .progress-bar {
-      height: 100%;
-      border-radius: 1rem;
-      transition: width 0.5s ease-out;
-    }
-
-    .cpu-bar {
-      background: linear-gradient(to right, var(--success), var(--warning), var(--danger));
-    }
-
-    .memory-bar {
-      background: linear-gradient(to right, #4f46e5, #7c3aed);
-    }
-
-    .cores-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 0.75rem;
-      margin-top: 0.5rem;
-    }
-
-    .core-item {
-      background-color: var(--bg-primary);
-      border-radius: 0.5rem;
-      padding: 0.5rem;
-      text-align: center;
-      border: 1px solid var(--border);
-    }
-
-    .core-label {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.25rem;
-    }
-
-    .core-value {
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
-
-    .details-container {
-      background-color: var(--bg-primary);
-      border-radius: 0.5rem;
-      padding: 1rem;
-      margin-top: 0.5rem;
-      border: 1px solid var(--border);
-      max-height: 200px;
-      overflow-y: auto;
-    }
-
-    pre {
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-      font-size: 0.875rem;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-
-    .actions {
-      display: flex;
-      gap: 1rem;
-      margin-top: 1.5rem;
-      justify-content: flex-end;
-    }
-
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      border: none;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .btn-primary {
-      background-color: var(--accent);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    .btn-danger {
-      background-color: var(--danger);
-      color: white;
-    }
-
-    .btn-danger:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      background-color: var(--bg-secondary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      background-color: var(--bg-primary);
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .pulse {
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.7; }
-      100% { opacity: 1; }
-    }
-
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s;
-    }
-
-    .modal.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-content {
-      background-color: var(--bg-secondary);
-      border-radius: 0.75rem;
-      padding: 2rem;
-      width: 90%;
-      max-width: 500px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    }
-
-    .modal-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-    }
-
-    .modal-body {
-      margin-bottom: 1.5rem;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1rem;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .grid {
-        grid-template-columns: 1fr;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Monitor</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <style>
+      :root {
+        --bg-primary: #f8f9fa;
+        --bg-secondary: #ffffff;
+        --text-primary: #333333;
+        --text-secondary: #6c757d;
+        --accent: #4f46e5;
+        --danger: #ef4444;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --border: #e5e7eb;
+        --shadow: rgba(0, 0, 0, 0.1);
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
       }
-    }
 
-    /* Landscape tablet optimization */
-    @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+      .dark-theme {
+        --bg-primary: #111827;
+        --bg-secondary: #1f2937;
+        --text-primary: #f3f4f6;
+        --text-secondary: #9ca3af;
+        --border: #374151;
+        --shadow: rgba(0, 0, 0, 0.3);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        transition: background-color 0.3s, color 0.3s;
+        padding: 1.5rem;
+        min-height: 100vh;
+      }
+
       .dashboard {
-        padding: 0.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
       }
-      
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      
-      .card {
-        padding: 1.25rem;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="dashboard">
-    <div class="header">
-      <h1 class="title">System Monitor</h1>
-      <button id="theme-toggle" class="theme-toggle">
-        <span id="theme-icon">🌙</span>
-        <span id="theme-text">Dark Mode</span>
-      </button>
-    </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">CPU Usage</h2>
-          <span id="cpu-overall-badge" class="stat-value">0%</span>
-        </div>
-        <div class="card-content">
-          <div>
-            <div class="stat-row">
-              <span class="stat-label">Overall Usage</span>
-              <span id="cpu-overall" class="stat-value">Loading...</span>
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+
+      .title {
+        font-size: 1.75rem;
+        font-weight: 700;
+      }
+
+      .theme-toggle {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+
+      .theme-toggle:hover {
+        background: var(--accent);
+        color: white;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .card {
+        background: var(--bg-secondary);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        border: 1px solid var(--border);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px var(--shadow);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .card-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .stat-label {
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+
+      .stat-value {
+        font-weight: 600;
+      }
+
+      .progress-container {
+        width: 100%;
+        height: 0.5rem;
+        background-color: var(--border);
+        border-radius: 1rem;
+        overflow: hidden;
+        margin-top: 0.5rem;
+      }
+
+      .progress-bar {
+        height: 100%;
+        border-radius: 1rem;
+        transition: width 0.5s ease-out;
+      }
+
+      .cpu-bar {
+        background: linear-gradient(
+          to right,
+          var(--success),
+          var(--warning),
+          var(--danger)
+        );
+      }
+
+      .memory-bar {
+        background: linear-gradient(to right, #4f46e5, #7c3aed);
+      }
+
+      .disk-bar {
+        background: linear-gradient(to right, #0ea5e9, #0284c7);
+      }
+
+      .cores-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+      }
+
+      .core-item {
+        background-color: var(--bg-primary);
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        text-align: center;
+        border: 1px solid var(--border);
+      }
+
+      .core-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.25rem;
+      }
+
+      .core-value {
+        font-weight: 600;
+        font-size: 0.875rem;
+      }
+
+      .details-container {
+        background-color: var(--bg-primary);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+        border: 1px solid var(--border);
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      pre {
+        font-family: "Menlo", "Monaco", "Courier New", monospace;
+        font-size: 0.875rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        justify-content: flex-end;
+      }
+
+      .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary {
+        background-color: var(--accent);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+
+      .btn-danger {
+        background-color: var(--danger);
+        color: white;
+      }
+
+      .btn-danger:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+
+      .btn-secondary {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+      }
+
+      .btn-secondary:hover {
+        background-color: var(--bg-primary);
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+
+      .modal.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .modal-content {
+        background-color: var(--bg-secondary);
+        border-radius: 0.75rem;
+        padding: 2rem;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+
+      .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+
+      .modal-body {
+        margin-bottom: 1.5rem;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+      }
+
+      .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: "Segoe UI", sans-serif;
+        background-color: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .modern-table thead {
+        background-color: #f5f5f5;
+        color: #333;
+      }
+
+      .modern-table th,
+      .modern-table td {
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 14px;
+      }
+
+      .modern-table tbody tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+
+      .modern-table tbody tr:hover {
+        background-color: #f0f8ff;
+        transition: background-color 0.2s ease;
+      }
+
+      .modern-table th {
+        font-weight: 600;
+      }
+
+      .modern-table td {
+        color: #444;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Landscape tablet optimization */
+      @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+        .dashboard {
+          padding: 0.5rem;
+        }
+
+        .grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .card {
+          padding: 1.25rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard">
+      <div class="header">
+        <h1 class="title">System Monitor</h1>
+        <button id="theme-toggle" class="theme-toggle">
+          <span id="theme-icon">🌙</span>
+          <span id="theme-text">Dark Mode</span>
+        </button>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">CPU Usage</h2>
+            <span id="cpu-overall-badge" class="stat-value">0%</span>
+          </div>
+          <div class="card-content">
+            <div>
+              <div class="stat-row">
+                <span class="stat-label">Overall Usage</span>
+                <span id="cpu-overall" class="stat-value">Loading...</span>
+              </div>
+              <div class="progress-container">
+                <div
+                  id="cpu-progress"
+                  class="progress-bar cpu-bar"
+                  style="width: 0%"
+                ></div>
+              </div>
             </div>
-            <div class="progress-container">
-              <div id="cpu-progress" class="progress-bar cpu-bar" style="width: 0%"></div>
+
+            <div>
+              <div class="stat-row">
+                <span class="stat-label">Per-Core Usage</span>
+              </div>
+              <div id="cores-grid" class="cores-grid">
+                <div class="core-item pulse">
+                  <div class="core-label">Loading</div>
+                  <div class="core-value">...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-label">Logical Cores</span>
+              <span id="cpu-logical" class="stat-value">Loading...</span>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-label">Physical Cores</span>
+              <span id="cpu-physical" class="stat-value">Loading...</span>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-label">CPU Frequency</span>
+              <span id="cpu-freq" class="stat-value">Loading...</span>
             </div>
           </div>
+        </div>
 
-          <div>
-            <div class="stat-row">
-              <span class="stat-label">Per-Core Usage</span>
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Memory</h2>
+            <span id="memory-percentage" class="stat-value">0%</span>
+          </div>
+          <div class="card-content">
+            <div>
+              <div class="stat-row">
+                <span class="stat-label">Memory Usage</span>
+                <span id="mem" class="stat-value">Loading...</span>
+              </div>
+              <div class="progress-container">
+                <div
+                  id="memory-progress"
+                  class="progress-bar memory-bar"
+                  style="width: 0%"
+                ></div>
+              </div>
             </div>
-            <div id="cores-grid" class="cores-grid">
-              <div class="core-item pulse">
-                <div class="core-label">Loading</div>
-                <div class="core-value">...</div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Top 10 Processes</h2>
+              </div>
+              <div class="card-content">
+                <div class="details-container" id="process-list">
+                  <table class="modern-table">
+                    <thead>
+                      <tr>
+                        <th>PID</th>
+                        <th>Process Name</th>
+                        <th>CPU%</th>
+                        <th>Memory%</th>
+                      </tr>
+                    </thead>
+                    <tbody id="top-processes-table-body"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
-
-          <div class="stat-row">
-            <span class="stat-label">Logical Cores</span>
-            <span id="cpu-logical" class="stat-value">Loading...</span>
-          </div>
-
-          <div class="stat-row">
-            <span class="stat-label">Physical Cores</span>
-            <span id="cpu-physical" class="stat-value">Loading...</span>
-          </div>
-
-          <div class="stat-row">
-            <span class="stat-label">CPU Frequency</span>
-            <span id="cpu-freq" class="stat-value">Loading...</span>
-          </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">Memory</h2>
-          <span id="memory-percentage" class="stat-value">0%</span>
+      <div class="actions">
+        <button id="shutdown-btn" class="btn btn-danger">Shut Down</button>
+      </div>
+    </div>
+
+    <div id="shutdown-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="modal-title">Confirm Shutdown</h2>
+        <div class="modal-body">
+          <p>
+            Are you sure you want to shut down the system? This action cannot be
+            undone.
+          </p>
         </div>
-        <div class="card-content">
-          <div>
-            <div class="stat-row">
-              <span class="stat-label">Memory Usage</span>
-              <span id="mem" class="stat-value">Loading...</span>
-            </div>
-            <div class="progress-container">
-              <div id="memory-progress" class="progress-bar memory-bar" style="width: 0%"></div>
-            </div>
-          </div>
-
-          <div class="stat-row">
-            <span class="stat-label">Load Average</span>
-            <span id="load-avg" class="stat-value">Loading...</span>
-          </div>
-
-          <div>
-            <div class="stat-row">
-              <span class="stat-label">CPU Times</span>
-            </div>
-            <div class="details-container">
-              <pre id="cpu-times">Loading...</pre>
-            </div>
-          </div>
+        <div class="modal-actions">
+          <button id="cancel-shutdown" class="btn btn-secondary">Cancel</button>
+          <button id="confirm-shutdown" class="btn btn-danger">
+            Shut Down
+          </button>
         </div>
       </div>
     </div>
 
-    <div class="actions">
-      <button id="shutdown-btn" class="btn btn-danger">Shut Down</button>
-    </div>
-  </div>
+    <script>
+      // Theme toggle functionality
+      const themeToggle = document.getElementById("theme-toggle");
+      const themeIcon = document.getElementById("theme-icon");
+      const themeText = document.getElementById("theme-text");
 
-  <div id="shutdown-modal" class="modal">
-    <div class="modal-content">
-      <h2 class="modal-title">Confirm Shutdown</h2>
-      <div class="modal-body">
-        <p>Are you sure you want to shut down the system? This action cannot be undone.</p>
-      </div>
-      <div class="modal-actions">
-        <button id="cancel-shutdown" class="btn btn-secondary">Cancel</button>
-        <button id="confirm-shutdown" class="btn btn-danger">Shut Down</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Theme toggle functionality
-    const themeToggle = document.getElementById('theme-toggle');
-    const themeIcon = document.getElementById('theme-icon');
-    const themeText = document.getElementById('theme-text');
-    
-    function setTheme(isDark) {
-      if (isDark) {
-        document.body.classList.add('dark-theme');
-        themeIcon.textContent = '☀️';
-        themeText.textContent = 'Light Mode';
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.body.classList.remove('dark-theme');
-        themeIcon.textContent = '🌙';
-        themeText.textContent = 'Dark Mode';
-        localStorage.setItem('theme', 'light');
+      function setTheme(isDark) {
+        if (isDark) {
+          document.body.classList.add("dark-theme");
+          themeIcon.textContent = "☀️";
+          themeText.textContent = "Light Mode";
+          localStorage.setItem("theme", "dark");
+        } else {
+          document.body.classList.remove("dark-theme");
+          themeIcon.textContent = "🌙";
+          themeText.textContent = "Dark Mode";
+          localStorage.setItem("theme", "light");
+        }
       }
-    }
-    
-    // Check for saved theme preference
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setTheme(true);
-    }
-    
-    themeToggle.addEventListener('click', () => {
-      const isDarkMode = document.body.classList.contains('dark-theme');
-      setTheme(!isDarkMode);
-    });
 
-    // Modal functionality
-    const modal = document.getElementById('shutdown-modal');
-    const shutdownBtn = document.getElementById('shutdown-btn');
-    const cancelBtn = document.getElementById('cancel-shutdown');
-    const confirmBtn = document.getElementById('confirm-shutdown');
-    
-    shutdownBtn.addEventListener('click', () => {
-      modal.classList.add('active');
-    });
-    
-    cancelBtn.addEventListener('click', () => {
-      modal.classList.remove('active');
-    });
-    
-    confirmBtn.addEventListener('click', () => {
-      modal.classList.remove('active');
-      shutdown();
-    });
+      // Check for saved theme preference
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") {
+        setTheme(true);
+      }
 
-    // Core usage visualization
-    function updateCoreUsage(coreData) {
-      const coresGrid = document.getElementById('cores-grid');
-      coresGrid.innerHTML = '';
-      
-      coreData.forEach((usage, index) => {
-        const coreItem = document.createElement('div');
-        coreItem.className = 'core-item';
-        
-        // Set background color based on usage
-        const hue = Math.max(0, 120 - (usage * 1.2));
-        coreItem.style.borderLeft = `3px solid hsl(${hue}, 70%, 50%)`;
-        
-        coreItem.innerHTML = `
+      themeToggle.addEventListener("click", () => {
+        const isDarkMode = document.body.classList.contains("dark-theme");
+        setTheme(!isDarkMode);
+      });
+
+      // Modal functionality
+      const modal = document.getElementById("shutdown-modal");
+      const shutdownBtn = document.getElementById("shutdown-btn");
+      const cancelBtn = document.getElementById("cancel-shutdown");
+      const confirmBtn = document.getElementById("confirm-shutdown");
+
+      shutdownBtn.addEventListener("click", () => {
+        modal.classList.add("active");
+      });
+
+      cancelBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+      });
+
+      confirmBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+        shutdown();
+      });
+
+      // Format uptime to human-readable format
+      function formatUptime(seconds) {
+        const days = Math.floor(seconds / (3600 * 24));
+        const hours = Math.floor((seconds % (3600 * 24)) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+
+        let result = "";
+        if (days > 0) result += `${days}d `;
+        if (hours > 0) result += `${hours}h `;
+        if (minutes > 0) result += `${minutes}m `;
+        result += `${secs}s`;
+
+        return result;
+      }
+
+      // Format bytes to human-readable format
+      function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return "0 Bytes";
+
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+        return (
+          parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+        );
+      }
+
+      // Core usage visualization
+      function updateCoreUsage(coreData) {
+        const coresGrid = document.getElementById("cores-grid");
+        coresGrid.innerHTML = "";
+
+        coreData.forEach((usage, index) => {
+          const coreItem = document.createElement("div");
+          coreItem.className = "core-item";
+
+          // Set background color based on usage
+          const hue = Math.max(0, 120 - usage * 1.2);
+          coreItem.style.borderLeft = `3px solid hsl(${hue}, 70%, 50%)`;
+
+          coreItem.innerHTML = `
           <div class="core-label">Core ${index}</div>
           <div class="core-value">${usage}%</div>
         `;
-        
-        coresGrid.appendChild(coreItem);
-      });
-    }
 
-    function fetchStats() {
-      fetch("http://127.0.0.1:5000/stats")
-        .then(res => res.json())
-        .then(data => {
-          // CPU Overall
-          const cpuUsage = data.cpu_overall_percent;
-          document.getElementById("cpu-overall").textContent = `${cpuUsage}%`;
-          document.getElementById("cpu-overall-badge").textContent = `${cpuUsage}%`;
-          document.getElementById("cpu-progress").style.width = `${cpuUsage}%`;
-          
-          // CPU Cores
-          updateCoreUsage(data.cpu_per_core_percent);
-          
-          // CPU Info
-          document.getElementById("cpu-logical").textContent = data.cpu_count_logical;
-          document.getElementById("cpu-physical").textContent = data.cpu_count_physical;
-          
-          // CPU Frequency
-          const freq = data.cpu_freq;
-          document.getElementById("cpu-freq").textContent =
-            freq.current ? `${freq.current.toFixed(1)} MHz (Min: ${freq.min} / Max: ${freq.max})` : "N/A";
-
-          // Load Average
-          document.getElementById("load-avg").textContent =
-            data.load_avg ? data.load_avg.map(n => n?.toFixed(2)).join(", ") : "N/A";
-
-          // CPU Times
-          document.getElementById("cpu-times").textContent = JSON.stringify(data.cpu_times, null, 2);
-
-          // Memory
-          const mem = data.memory;
-          const usedMB = Math.round(mem.used / 1024 / 1024);
-          const totalMB = Math.round(mem.total / 1024 / 1024);
-          const memPercentage = Math.round((mem.used / mem.total) * 100);
-          
-          document.getElementById("mem").textContent = `${usedMB} MB / ${totalMB} MB`;
-          document.getElementById("memory-percentage").textContent = `${memPercentage}%`;
-          document.getElementById("memory-progress").style.width = `${memPercentage}%`;
-        })
-        .catch(error => {
-          console.error("Error fetching stats:", error);
+          coresGrid.appendChild(coreItem);
         });
-    }
+      }
 
-    function shutdown() {
-      fetch("http://127.0.0.1:5000/shutdown", { method: "POST" })
-        .then(res => res.json())
-        .then(data => {
-          alert(data.message);
-        })
-        .catch(error => {
-          console.error("Error during shutdown:", error);
-          alert("Failed to shut down the system. Please try again.");
-        });
-    }
+      function fetchStats() {
+        fetch("http://127.0.0.1:5000/stats")
+          .then((res) => res.json())
+          .then((data) => {
+            // CPU Overall
+            const cpuUsage = data.cpu_overall_percent;
+            document.getElementById("cpu-overall").textContent = `${cpuUsage}%`;
+            document.getElementById(
+              "cpu-overall-badge"
+            ).textContent = `${cpuUsage}%`;
+            document.getElementById(
+              "cpu-progress"
+            ).style.width = `${cpuUsage}%`;
 
-    // Initial fetch and set interval
-    fetchStats();
-    setInterval(fetchStats, 3000);
-  </script>
-</body>
+            // CPU Cores
+            updateCoreUsage(data.cpu_per_core_percent);
+
+            // CPU Info
+            document.getElementById("cpu-logical").textContent =
+              data.cpu_count_logical;
+            document.getElementById("cpu-physical").textContent =
+              data.cpu_count_physical;
+
+            // CPU Frequency
+            const freq = data.cpu_freq;
+            document.getElementById("cpu-freq").textContent = freq.current
+              ? `${freq.current.toFixed(1)} MHz (Min: ${freq.min} / Max: ${
+                  freq.max
+                })`
+              : "N/A";
+
+            // Memory
+            const mem = data.memory;
+            const usedMB = Math.round(mem.used / 1024 / 1024);
+            const totalMB = Math.round(mem.total / 1024 / 1024);
+            const memPercentage = Math.round((mem.used / mem.total) * 100);
+
+            document.getElementById(
+              "mem"
+            ).textContent = `${usedMB} MB / ${totalMB} MB`;
+            document.getElementById(
+              "memory-percentage"
+            ).textContent = `${memPercentage}%`;
+            document.getElementById(
+              "memory-progress"
+            ).style.width = `${memPercentage}%`;
+
+            console.log(data.top_processes);
+
+            if (data.top_processes && Array.isArray(data.top_processes)) {
+              const tbody = document.getElementById("top-processes-table-body");
+              tbody.innerHTML = ""; // Clear previous rows
+
+              data.top_processes.forEach((proc) => {
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+            <td>${proc.pid}</td>
+            <td>${proc.name}</td>
+            <td>${proc.cpu_percent.toFixed(1)}%</td>
+            <td>${proc.memory_percent.toFixed(1)}%</td>
+          `;
+
+                tbody.appendChild(row);
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching stats:", error);
+          });
+      }
+
+      function shutdown() {
+        fetch("http://127.0.0.1:5000/shutdown", { method: "POST" })
+          .then((res) => res.json())
+          .then((data) => {
+            alert(data.message);
+          })
+          .catch((error) => {
+            console.error("Error during shutdown:", error);
+            alert("Failed to shut down the system. Please try again.");
+          });
+      }
+
+      // Initial fetch and set interval
+      fetchStats();
+      setInterval(fetchStats, 3000);
+    </script>
+  </body>
 </html>
