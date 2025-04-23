@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tray Selector</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f3f4f6;
+      color: #1f2937;
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 672px;
+      background-color: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                  0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    header {
+      background-color: #4f46e5;
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .tray-summary {
+      display: flex;
+      justify-content: space-around;
+      padding: 1rem;
+      background-color: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tray-item {
+      background-color: #ffffff;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s ease;
+      min-width: 80px;
+    }
+
+    .tray-item.active {
+      background-color: #eef2ff;
+      box-shadow: 0 0 0 2px #6366f1;
+    }
+
+    .tray-item:hover {
+      background-color: #f5f7ff;
+    }
+
+    .tray-label {
+      font-size: 0.875rem;
+      color: #4b5563;
+      margin-bottom: 0.25rem;
+    }
+
+    .tray-value {
+      font-weight: 600;
+      color: #4f46e5;
+    }
+
+    .tray-value.empty {
+      color: #9ca3af;
+      font-style: italic;
+    }
+
+    .reset-tray {
+      margin-top: 0.5rem;
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+    }
+
+    .reset-tray:hover {
+      background-color: #dc2626;
+    }
+
+    .content {
+      padding: 1.5rem;
+    }
+
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    .numpad button {
+      padding: 0.75rem;
+      font-size: 1.125rem;
+      border: none;
+      border-radius: 0.75rem;
+      background-color: #e5e7eb;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .numpad button:hover {
+      background-color: #d1d5db;
+      transform: translateY(-2px);
+    }
+
+    .numpad button:active {
+      transform: translateY(1px);
+    }
+
+    .numpad button.selected {
+      background-color: #4f46e5;
+      color: white;
+    }
+
+    .submit-section {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .submit-section button {
+      background-color: #10b981;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .submit-section button:hover {
+      background-color: #059669;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Tray Selector</h1>
+    </header>
+
+    <div class="tray-summary" id="tray-summary"></div>
+
+    <div class="content">
+      <div class="numpad" id="numpad"></div>
+    </div>
+
+    <div class="submit-section">
+      <button onclick="submitData()">Submit</button>
+    </div>
+  </div>
+
+  <script>
+    const traySummary = document.getElementById("tray-summary");
+    const numpad = document.getElementById("numpad");
+
+    let currentTray = 1;
+    const trays = { 1: null, 2: null, 3: null };
+
+    function initializeUI() {
+      renderTraySummary();
+      renderNumpad();
+    }
+
+    function renderTraySummary() {
+      traySummary.innerHTML = "";
+
+      for (let i = 1; i <= 3; i++) {
+        const item = document.createElement("div");
+        item.className = `tray-item ${currentTray === i ? "active" : ""}`;
+        item.onclick = () => selectTray(i);
+
+        item.innerHTML = `
+          <div class="tray-label">Tray ${i}</div>
+          <div class="tray-value ${trays[i] === null ? "empty" : ""}">
+            ${trays[i] !== null ? `Table ${trays[i]}` : "-"}
+          </div>
+        `;
+
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "reset-tray";
+        resetBtn.textContent = "Reset";
+        resetBtn.onclick = (e) => {
+          e.stopPropagation();
+          trays[i] = null;
+          renderTraySummary();
+          renderNumpad();
+        };
+
+        item.appendChild(resetBtn);
+        traySummary.appendChild(item);
+      }
+    }
+
+    function renderNumpad() {
+      numpad.innerHTML = "";
+      for (let i = 1; i <= 12; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        if (trays[currentTray] === i) btn.classList.add("selected");
+        btn.onclick = () => {
+          trays[currentTray] = i;
+          renderTraySummary();
+          renderNumpad();
+        };
+        numpad.appendChild(btn);
+      }
+    }
+
+    function selectTray(trayNum) {
+      currentTray = trayNum;
+      renderTraySummary();
+      renderNumpad();
+    }
+
+    function submitData() {
+      fetch("http://127.0.0.1:5000/get-table-array", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trays }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          alert("Submitted: " + JSON.stringify(trays));
+          console.log(trays);
+        })
+        .catch((err) => {
+          alert("Submission failed.");
+          console.error(err);
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", initializeUI);
+  </script>
+</body>
+</html>
