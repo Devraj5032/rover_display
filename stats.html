@@ -553,17 +553,17 @@
 
     <div id="shutdown-modal" class="modal">
       <div class="modal-content">
-        <h2 class="modal-title">Confirm Shutdown</h2>
+        <h2 class="modal-title">Confirm Reboot</h2>
         <div class="modal-body">
           <p>
-            Are you sure you want to shut down the system? This action cannot be
+            Are you sure you want to reboot the system? This action cannot be
             undone.
           </p>
         </div>
         <div class="modal-actions">
           <button id="cancel-shutdown" class="btn btn-secondary">Cancel</button>
           <button id="confirm-shutdown" class="btn btn-danger">
-            Shut Down
+            Reboot
           </button>
         </div>
       </div>
@@ -741,14 +741,14 @@
       }
 
       function shutdown() {
-        fetch("http://127.0.0.1:5000/shutdown", { method: "POST" })
+        fetch("http://127.0.0.1:5000/reboot", { method: "POST" })
           .then((res) => res.json())
           .then((data) => {
             alert(data.message);
           })
           .catch((error) => {
-            console.error("Error during shutdown:", error);
-            alert("Failed to shut down the system. Please try again.");
+            console.error("Error during reboot:", error);
+            alert("Failed to reboot the system. Please try again.");
           });
       }
 

@@ -78,14 +78,15 @@ def background_task():
         socketio.emit('stats_update', get_system_stats())
         time.sleep(1)  # Send updates every second
 
-@app.route("/shutdown", methods=["POST"])
-def shutdown():
+@app.route("/reboot", methods=["POST"])
+def reboot():
     system = platform.system()
     if system == "Windows":
-        os.system("shutdown /s /t 1")
+        os.system("shutdown /r /t 1")  # /r = reboot, /t 1 = after 1 second
     elif system == "Linux":
-        os.system("sudo shutdown now")
-    return jsonify({"message": "Shutting down..."})
+        os.system("sudo reboot")  # 'reboot' is the standard reboot command
+    return jsonify({"message": "Rebooting..."})
+
 
 if __name__ == '__main__':
     # Start background thread for sending stats
