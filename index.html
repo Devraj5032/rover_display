@@ -157,6 +157,27 @@
     .submit-section button:hover {
       background-color: #059669;
     }
+
+    /* Toast notification styles */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #10b981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -176,9 +197,13 @@
     </div>
   </div>
 
+  <!-- Toast notification element -->
+  <div id="toast" class="toast">Submitted</div>
+
   <script>
     const traySummary = document.getElementById("tray-summary");
     const numpad = document.getElementById("numpad");
+    const toast = document.getElementById("toast");
 
     let currentTray = 1;
     const trays = { 1: null, 2: null, 3: null };
@@ -238,6 +263,24 @@
       renderNumpad();
     }
 
+    // Show toast notification
+    function showToast(duration = 1500) {
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, duration);
+    }
+
+    // Reset form
+    function resetForm() {
+      for (let i = 1; i <= 3; i++) {
+        trays[i] = null;
+      }
+      currentTray = 1;
+      renderTraySummary();
+      renderNumpad();
+    }
+
     function submitData() {
       fetch("http://127.0.0.1:5000/get-table-array", {
         method: "POST",
@@ -246,12 +289,19 @@
       })
         .then((res) => res.json())
         .then((data) => {
-          alert("Submitted: " + JSON.stringify(trays));
+          // Show toast instead of alert
+          showToast(1500);
           console.log(trays);
+          // Reset form after submission
+          resetForm();
         })
         .catch((err) => {
-          alert("Submission failed.");
+          toast.textContent = "Submission failed";
+          toast.style.backgroundColor = "#ef4444";
+          showToast(1500);
           console.error(err);
+          toast.textContent = "Submitted";
+          toast.style.backgroundColor = "#10b981";
         });
     }
 
