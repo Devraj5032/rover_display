@@ -11,13 +11,76 @@ import threading
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+ws_server = None
+clients = []  # Store connected clients
+
+def new_client(client, server):
+    """Called when a new client connects to the WebSocket server"""
+    print(f"New client connected and was given id {client['id']}")
+    clients.append(client)
+
+def client_left(client, server):
+    """Called when a client disconnects from the WebSocket server"""
+    print(f"Client {client['id']} disconnected")
+    if client in clients:
+        clients.remove(client)
+
+def message_received(client, server, message):
+    """Called when a client sends a message to the server"""
+    try:
+        data = json.loads(message)
+        if data.get("type") == "waypoint_result":
+            print(f"Received Fibonacci result: {data['sequence']}")
+        else:
+            print("Received unrecognized message type")
+
+    except Exception as e:
+        print(f"Error handling message: {e}")
+
+def start_websocket_server():
+    global ws_server
+    port = 48236
+    max_retries = 10
+    
+    for attempt in range(max_retries):
+        try:
+            ws_server = websocket_server.WebsocketServer(host='0.0.0.0', port=port)
+            # ws_server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            ws_server.set_fn_new_client(new_client)
+            ws_server.set_fn_client_left(client_left)
+            ws_server.set_fn_message_received(message_received)
+            print(f"WebSocket server started on port {port}")
+            ws_server.run_forever(threaded=True)
+            break
+        except OSError as e:
+            if attempt == max_retries - 1:
+                print(f"Failed to start WebSocket server after {max_retries} attempts: {e}")
+                raise
+            print(f"Port {port} in use, retrying with port {port + 1}...")
+            port += 1
+            time.sleep(1)
+
+# Start WebSocket server in a separate thread
+websocket_thread = threading.Thread(target=start_websocket_server, daemon=True)
+websocket_thread.start()
 
 @app.route('/get-table-array', methods=['POST'])
 def get_table_array():
     data = request.get_json()
     trays = data.get('trays', {})
     print(trays)
-    tray_array = [trays.get(i, None) for i in range(1, 4)]
+    tray_array = [f"T{value}" for value in trays.values()]
+    
+    # Send data to all connected WebSocket clients
+    if ws_server and clients:
+        ws_message = json.dumps({
+            "order": 10 ,
+            "tray": tray_array
+        })
+        
+        for client in clients:
+            ws_server.send_message(client, ws_message)
+        print(f"Sent WebSocket message to {len(clients)} clients: {ws_message}")
     return jsonify(tray_array)
 
 def get_system_stats():
@@ -56,8 +119,6 @@ def get_system_stats():
         "top_processes": top_processes
     }
 
-
-# Add these new routes at the bottom (above if __name__ == '__main__')
 @app.route('/')
 def index():
     return render_template('index.html')
