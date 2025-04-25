@@ -1,3 +1,4 @@
+from flask import Flask, request, jsonify, render_template  # add render_template
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
@@ -54,6 +55,17 @@ def get_system_stats():
         "memory": memory,
         "top_processes": top_processes
     }
+
+
+# Add these new routes at the bottom (above if __name__ == '__main__')
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/stats-page')
+def stats_page():
+    return render_template('stats.html')
+
 
 # Keep the REST endpoint for backward compatibility
 @app.route("/stats")
