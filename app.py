@@ -82,10 +82,11 @@ def background_task():
 def reboot():
     system = platform.system()
     if system == "Windows":
-        os.system("shutdown /r /t 1")  # /r = reboot, /t 1 = after 1 second
+        os.system("shutdown /r /t 1")
     elif system == "Linux":
-        os.system("sudo reboot")  # 'reboot' is the standard reboot command
+        os.system("sudo /usr/sbin/reboot")
     return jsonify({"message": "Rebooting..."})
+
 
 
 if __name__ == '__main__':
