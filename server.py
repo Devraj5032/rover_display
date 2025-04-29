@@ -9,10 +9,33 @@ import time
 import threading
 import websocket_server
 import json
+import sqlite3
+import shortuuid
 
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*") 
+def init_db():
+    conn = sqlite3.connect('tray_orders.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS tray_orders (
+                id TEXT PRIMARY KEY,
+                timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')),
+                tray1_table_id INTEGER,
+                tray1_reached BOOLEAN DEFAULT 0,
+                tray2_table_id INTEGER,
+                tray2_reached BOOLEAN DEFAULT 0,
+                tray3_table_id INTEGER,
+                tray3_reached BOOLEAN DEFAULT 0,
+                success BOOLEAN DEFAULT 0,
+                chef_table INTEGER DEFAULT 0
+                )''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+
 ws_server = None
 clients = []  # Store connected clients
 
@@ -33,6 +56,23 @@ def message_received(client, server, message):
         data = json.loads(message)
         if data.get("type") == "waypoint_result":
             print(f"Received Fibonacci result: {data['sequence']}")
+            print(f"Received table result: {data['sequence']}")
+            if data['sequence']:
+                conn = sqlite3.connect('tray_orders.db')
+                c = conn.cursor()
+                c.execute('SELECT tray1_table_id, tray2_table_id, tray3_table_id FROM tray_orders WHERE id = ?', (data['order'],))
+                row = c.fetchone()
+                if row:
+                    tray1_table_id, tray2_table_id, tray3_table_id = row
+                    tray1_reached = 0 if tray1_table_id in data['sequence'] else 1
+                    tray2_reached = 0 if tray2_table_id in data['sequence'] else 1
+                    tray3_reached = 0 if tray3_table_id in data['sequence'] else 1
+                    c.execute('''UPDATE tray_orders 
+                                SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ? 
+                                WHERE id = ?''', 
+                              (tray1_reached, tray2_reached, tray3_reached, data['order']))
+                    conn.commit()
+            conn.close()
         else:
             print("Received unrecognized message type")
 
@@ -72,11 +112,26 @@ def get_table_array():
     trays = data.get('trays', {})
     print(trays)
     tray_array = [f"T{value}" for value in trays.values()]
-    
+    id = shortuuid.uuid()
+    conn = sqlite3.connect('tray_orders.db')
+    c = conn.cursor()
+    try:
+        c.execute('''INSERT INTO tray_orders 
+                    (id, tray1_table_id, tray2_table_id, tray3_table_id) 
+                    VALUES (?, ?, ?, ?)''',
+                 (id, 
+                  trays.get('1'),
+                  trays.get('2'),
+                  trays.get('3')))
+        conn.commit()
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
     # Send data to all connected WebSocket clients
     if ws_server and clients:
         ws_message = json.dumps({
-            "order": 10 ,
+            "order": id ,
             "tray": tray_array
         })
         
