@@ -46,7 +46,7 @@ def log_health_check_rpi():
 
         # Create the SQL insert query
         insert_query = """
-            INSERT INTO logHealthCheckRPI (
+            INSERT INTO loghealthcheckrpi (
                 rover_id, rpi_id, device_id, check_status, check_value, 
                 date_time, location_x, location_y, location_z, remarks
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
