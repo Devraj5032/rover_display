@@ -28,6 +28,8 @@ def log_health_check_rpi():
     try:
         data = request.get_json()  # Get JSON data from the request
 
+        print(data)
+
         # Parse the data from the request
         rover_id = data.get('rover_id')
         rpi_id = data.get('rpi_id')
