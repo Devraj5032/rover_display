@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tray Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6a1b9a;
+            --secondary-color: #8e24aa;
+            --accent-color: #ab47bc;
+            --success-color: #2e7d32;
+            --light-purple: #f3e5f5;
+            --dark-color: #212529;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            color: var(--dark-color);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: white;
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+            margin-bottom: 30px;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo {
+            height: 50px;
+            width: auto;
+        }
+        
+        .app-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .trays-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .tray {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            transition: var(--transition);
+            border-top: 5px solid var(--primary-color);
+        }
+        
+        .tray.processing {
+            border-top: 5px solid var(--success-color);
+            background-color: #e8f5e9;
+        }
+        
+        .tray-title {
+            font-size: 22px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .tray.processing .tray-title {
+            color: var(--success-color);
+        }
+        
+        .table-info {
+            font-size: 18px;
+            margin: 15px 0;
+            padding: 10px 25px;
+            background-color: var(--light-purple);
+            border-radius: 20px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        
+        .tray.processing .table-info {
+            background-color: #e8f5e9;
+            color: var(--success-color);
+            font-weight: 600;
+        }
+        
+        .next-btn {
+            padding: 10px 30px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: var(--transition);
+            margin-top: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .next-btn:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .next-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .tray.processing .next-btn {
+            background-color: var(--success-color);
+        }
+        
+        .return-btn {
+            padding: 10px 25px;
+            background-color: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 25px;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            font-size: 16px;
+        }
+        
+        .return-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--success-color);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-10px);
+        }
+
+        .tray-icon {
+            font-size: 30px;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            transition: var(--transition);
+        }
+        
+        .tray.processing .tray-icon {
+            color: var(--success-color);
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 20px;
+            }
+            
+            .trays-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .tray {
+                margin-bottom: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <!-- Using a data URI for a placeholder logo with purple color -->
+                <img src="./images/logo.png" alt="Restaurant Logo" class="logo">
+            </div>
+            <button class="return-btn" onclick="returnToChef()">Return to Chef</button>
+        </div>
+        
+        <div class="trays-container">
+            <div class="tray" id="tray1">
+                <div class="tray-icon">🍽️</div>
+                <h2 class="tray-title">Tray 1</h2>
+                <div class="table-info" id="table1">Table 2</div>
+                <button class="next-btn" onclick="nextTable(1)">Next</button>
+            </div>
+            
+            <div class="tray" id="tray2">
+                <div class="tray-icon">🍽️</div>
+                <h2 class="tray-title">Tray 2</h2>
+                <div class="table-info" id="table2">Table 6</div>
+                <button class="next-btn" onclick="nextTable(2)">Next</button>
+            </div>
+            
+            <div class="tray" id="tray3">
+                <div class="tray-icon">🍽️</div>
+                <h2 class="tray-title">Tray 3</h2>
+                <div class="table-info" id="table3">Table 4</div>
+                <button class="next-btn" onclick="nextTable(3)">Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">Order processed successfully!</div>
+
+    <script>
+        // Function to parse URL parameters
+        function getUrlParams() {
+            const params = {};
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+            
+            // Get table numbers from URL parameters or use defaults
+            params.table1 = urlParams.get('table1') || 2;
+            params.table2 = urlParams.get('table2') || 6;
+            params.table3 = urlParams.get('table3') || 4;
+            
+            return params;
+        }
+        
+        // Initialize tables with URL parameters
+        function initTables() {
+            const params = getUrlParams();
+            
+            document.getElementById('table1').textContent = `Table ${params.table1}`;
+            document.getElementById('table2').textContent = `Table ${params.table2}`;
+            document.getElementById('table3').textContent = `Table ${params.table3}`;
+        }
+        
+        // Function to handle "Next" button clicks with visual feedback
+        function nextTable(trayNumber) {
+            const tray = document.getElementById(`tray${trayNumber}`);
+            const button = tray.querySelector('.next-btn');
+            const notification = document.getElementById('notification');
+            
+            // Disable button during processing
+            button.disabled = true;
+            
+            // Add processing class to turn the tray green
+            tray.classList.add('processing');
+            
+            // Show success notification
+            const tableNumber = document.getElementById(`table${trayNumber}`).textContent.split(' ')[1];
+            notification.textContent = `Order for Table ${tableNumber} processed successfully!`;
+            notification.classList.add('show');
+            
+            // Hide notification and reset after 2 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                
+                // Re-enable button
+                button.disabled = false;
+                
+                // Update table number (simulating getting a new order)
+                const currentTable = parseInt(tableNumber);
+                const newTable = currentTable + Math.floor(Math.random() * 10) + 1;
+                document.getElementById(`table${trayNumber}`).textContent = `Table ${newTable}`;
+                
+                // Remove the processing class after a delay to return to purple
+                setTimeout(() => {
+                    tray.classList.remove('processing');
+                }, 500);
+            }, 2000);
+        }
+        
+        // Function to handle "Return to chef" button
+        function returnToChef() {
+            const notification = document.getElementById('notification');
+            notification.textContent = "Returning to chef view...";
+            notification.classList.add('show');
+            
+            // Simulate navigation (replace with actual navigation)
+            setTimeout(() => {
+                notification.classList.remove('show');
+                // Here you would typically redirect to another page
+                // window.location.href = "chef.html";
+                alert("This would navigate to the chef view in a real application");
+            }, 2000);
+        }
+        
+        // Initialize the page when loaded
+        window.onload = initTables;
+    </script>
+</body>
+</html>
