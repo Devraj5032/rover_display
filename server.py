@@ -1,5 +1,4 @@
-from flask import Flask, request, jsonify, render_template  # add render_template
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import psutil
@@ -7,174 +6,109 @@ import os
 import platform
 import time
 import threading
-import websocket_server
-import json
 import sqlite3
+import json
 import shortuuid
+import signal
+import sys
+from websocket_server import WebsocketServer
 
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*") 
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# ---------- SHUTDOWN HANDLING VARIABLES ----------
+shutdown_event = threading.Event()
+background_threads = []
+ws_server = None
+
+# ---------- DATABASE INITIALIZATION ----------
+
 def init_db():
-    conn = sqlite3.connect('tray_orders.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS tray_orders (
-                id TEXT PRIMARY KEY,
-                timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')),
-                tray1_table_id INTEGER,
-                tray1_reached BOOLEAN DEFAULT 0,
-                tray2_table_id INTEGER,
-                tray2_reached BOOLEAN DEFAULT 0,
-                tray3_table_id INTEGER,
-                tray3_reached BOOLEAN DEFAULT 0,
-                success BOOLEAN DEFAULT 0,
-                chef_table INTEGER DEFAULT 0
-                )''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect('tray_orders.db') as conn:
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS tray_orders (
+            id TEXT PRIMARY KEY,
+            timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')),
+            tray1_table_id INTEGER,
+            tray1_reached BOOLEAN DEFAULT 0,
+            tray2_table_id INTEGER,
+            tray2_reached BOOLEAN DEFAULT 0,
+            tray3_table_id INTEGER,
+            tray3_reached BOOLEAN DEFAULT 0,
+            success BOOLEAN DEFAULT 0,
+            chef_table INTEGER DEFAULT 0
+        )''')
+        conn.commit()
 
 init_db()
 
+# ---------- WEBSOCKET SERVER HANDLING ----------
 
-ws_server = None
-clients = []  # Store connected clients
+clients = []
 
 def new_client(client, server):
-    """Called when a new client connects to the WebSocket server"""
-    print(f"New client connected and was given id {client['id']}")
+    print(f"New client connected: {client['id']}")
     clients.append(client)
 
 def client_left(client, server):
-    """Called when a client disconnects from the WebSocket server"""
     print(f"Client {client['id']} disconnected")
     if client in clients:
         clients.remove(client)
 
 def message_received(client, server, message):
-    """Called when a client sends a message to the server"""
     try:
         data = json.loads(message)
-        if data.get("type") == "waypoint_result":
-            print(f"Received Fibonacci result: {data['sequence']}")
-            print(f"Received table result: {data['sequence']}")
-            if data['sequence']:
-                conn = sqlite3.connect('tray_orders.db')
+        if data.get("type") == "waypoint_result" and data.get("sequence"):
+            print(f"Received sequence for order {data['order']}: {data['sequence']}")
+            with sqlite3.connect('tray_orders.db') as conn:
                 c = conn.cursor()
                 c.execute('SELECT tray1_table_id, tray2_table_id, tray3_table_id FROM tray_orders WHERE id = ?', (data['order'],))
                 row = c.fetchone()
                 if row:
-                    tray1_table_id, tray2_table_id, tray3_table_id = row
-                    tray1_reached = 0 if tray1_table_id in data['sequence'] else 1
-                    tray2_reached = 0 if tray2_table_id in data['sequence'] else 1
-                    tray3_reached = 0 if tray3_table_id in data['sequence'] else 1
+                    tray1_reached = 0 if row[0] in data['sequence'] else 1
+                    tray2_reached = 0 if row[1] in data['sequence'] else 1
+                    tray3_reached = 0 if row[2] in data['sequence'] else 1
                     c.execute('''UPDATE tray_orders 
-                                SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ? 
-                                WHERE id = ?''', 
+                                 SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ? 
+                                 WHERE id = ?''', 
                               (tray1_reached, tray2_reached, tray3_reached, data['order']))
                     conn.commit()
-            conn.close()
         else:
-            print("Received unrecognized message type")
-
+            print("Unrecognized message type")
     except Exception as e:
         print(f"Error handling message: {e}")
 
 def start_websocket_server():
     global ws_server
     port = 48236
-    max_retries = 10
-    
-    for attempt in range(max_retries):
+    for attempt in range(10):
         try:
-            ws_server = websocket_server.WebsocketServer(host='0.0.0.0', port=port)
-            # ws_server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            ws_server = WebsocketServer(host='0.0.0.0', port=port)
             ws_server.set_fn_new_client(new_client)
             ws_server.set_fn_client_left(client_left)
             ws_server.set_fn_message_received(message_received)
             print(f"WebSocket server started on port {port}")
             ws_server.run_forever(threaded=True)
             break
-        except OSError as e:
-            if attempt == max_retries - 1:
-                print(f"Failed to start WebSocket server after {max_retries} attempts: {e}")
-                raise
-            print(f"Port {port} in use, retrying with port {port + 1}...")
+        except OSError:
+            print(f"Port {port} in use, retrying...")
             port += 1
             time.sleep(1)
-
-# Start WebSocket server in a separate thread
-websocket_thread = threading.Thread(target=start_websocket_server, daemon=True)
-websocket_thread.start()
-
-@app.route('/get-table-array', methods=['POST'])
-def get_table_array():
-    data = request.get_json()
-    trays = data.get('trays', {})
-    print(trays)
-    tray_array = [f"T{value}" for value in trays.values()]
-    id = shortuuid.uuid()
-    conn = sqlite3.connect('tray_orders.db')
-    c = conn.cursor()
-    try:
-        c.execute('''INSERT INTO tray_orders 
-                    (id, tray1_table_id, tray2_table_id, tray3_table_id) 
-                    VALUES (?, ?, ?, ?)''',
-                 (id, 
-                  trays.get('1'),
-                  trays.get('2'),
-                  trays.get('3')))
-        conn.commit()
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-    # Send data to all connected WebSocket clients
-    if ws_server and clients:
-        ws_message = json.dumps({
-            "order": id ,
-            "tray": tray_array
-        })
-        
-        for client in clients:
-            ws_server.send_message(client, ws_message)
-        print(f"Sent WebSocket message to {len(clients)} clients: {ws_message}")
-    return jsonify(tray_array)
-
-def get_system_stats():
-    # Gather system info
-    cpu_overall_percent = psutil.cpu_percent(interval=1)
-    cpu_per_core_percent = psutil.cpu_percent(interval=1, percpu=True)
-    cpu_count_logical = psutil.cpu_count(logical=True)
-    cpu_count_physical = psutil.cpu_count(logical=False)
-    cpu_freq = psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {}
-    load_avg = os.getloadavg() if hasattr(os, 'getloadavg') else [None, None, None]
-    memory = psutil.virtual_memory()._asdict()
-
-    # Gather top 10 processes by CPU usage
-    processes = []
-    for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent', 'cmdline']):
+    
+    # Keep thread alive until shutdown is requested
+    while not shutdown_event.is_set():
+        time.sleep(1)
+    
+    # Close WebSocket server when shutdown is requested
+    if ws_server:
         try:
-            processes.append(proc.info)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+            print("Closing WebSocket server...")
+            ws_server.server_close()
+        except Exception as e:
+            print(f"Error closing WebSocket server: {e}")
 
-    # Sort processes by CPU usage, descending and get top 10
-    top_processes = sorted(processes, key=lambda p: p['cpu_percent'], reverse=True)[:10]
-
-    # Format command line nicely
-    for p in top_processes:
-        p['cmdline'] = ' '.join(p['cmdline']) if p['cmdline'] else ''
-
-    return {
-        "cpu_overall_percent": cpu_overall_percent,
-        "cpu_per_core_percent": cpu_per_core_percent,
-        "cpu_count_logical": cpu_count_logical,
-        "cpu_count_physical": cpu_count_physical,
-        "cpu_freq": cpu_freq,
-        "load_avg": load_avg,
-        "memory": memory,
-        "top_processes": top_processes
-    }
+# ---------- ROUTES ----------
 
 @app.route('/')
 def index():
@@ -184,11 +118,81 @@ def index():
 def stats_page():
     return render_template('stats.html')
 
+@app.route('/get-table-array', methods=['POST'])
+def get_table_array():
+    data = request.get_json()
+    trays = data.get('trays', {})
+    tray_array = [f"T{value}" for value in trays.values()]
+    order_id = shortuuid.uuid()
 
-# Keep the REST endpoint for backward compatibility
-@app.route("/stats")
+    try:
+        with sqlite3.connect('tray_orders.db') as conn:
+            c = conn.cursor()
+            c.execute('''INSERT INTO tray_orders 
+                         (id, tray1_table_id, tray2_table_id, tray3_table_id) 
+                         VALUES (?, ?, ?, ?)''',
+                      (order_id, trays.get('1'), trays.get('2'), trays.get('3')))
+            conn.commit()
+    except Exception as e:
+        print(f"Error inserting into database: {e}")
+
+    # Notify all WebSocket clients
+    if ws_server and clients:
+        ws_message = json.dumps({
+            "order": order_id,
+            "tray": tray_array
+        })
+        for client in clients:
+            ws_server.send_message(client, ws_message)
+        print(f"Sent tray order to {len(clients)} WebSocket clients.")
+
+    return jsonify(tray_array)
+
+@app.route('/stats')
 def stats():
     return jsonify(get_system_stats())
+
+@app.route('/reboot', methods=['POST'])
+def reboot():
+    system = platform.system()
+    if system == "Windows":
+        os.system("shutdown /r /t 1")
+    elif system == "Linux":
+        os.system("sudo /usr/sbin/reboot")
+    return jsonify({"message": "Rebooting..."})
+
+# ---------- SYSTEM STATS LOGIC ----------
+
+def get_system_stats():
+    cpu_overall_percent = psutil.cpu_percent(interval=1)
+    cpu_per_core_percent = psutil.cpu_percent(interval=1, percpu=True)
+    cpu_freq = psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {}
+    load_avg = os.getloadavg() if hasattr(os, 'getloadavg') else [None] * 3
+    memory = psutil.virtual_memory()._asdict()
+
+    processes = []
+    for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent', 'cmdline']):
+        try:
+            processes.append(proc.info)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    top_processes = sorted(processes, key=lambda p: p['cpu_percent'], reverse=True)[:10]
+    for p in top_processes:
+        p['cmdline'] = ' '.join(p['cmdline']) if p['cmdline'] else ''
+
+    return {
+        "cpu_overall_percent": cpu_overall_percent,
+        "cpu_per_core_percent": cpu_per_core_percent,
+        "cpu_count_logical": psutil.cpu_count(logical=True),
+        "cpu_count_physical": psutil.cpu_count(logical=False),
+        "cpu_freq": cpu_freq,
+        "load_avg": load_avg,
+        "memory": memory,
+        "top_processes": top_processes
+    }
+
+# ---------- SOCKET.IO EVENTS ----------
 
 @socketio.on('connect')
 def handle_connect():
@@ -203,26 +207,61 @@ def handle_request_stats():
     emit('stats_update', get_system_stats())
 
 def background_task():
-    """Background task to emit system stats every second"""
-    while True:
-        socketio.emit('stats_update', get_system_stats())
-        time.sleep(1)  # Send updates every second
+    print("Starting background stats task...")
+    while not shutdown_event.is_set():
+        try:
+            socketio.emit('stats_update', get_system_stats())
+            # Use a timeout so we can check the shutdown flag regularly
+            shutdown_event.wait(1)
+        except Exception as e:
+            print(f"Error in background task: {e}")
+            if not shutdown_event.is_set():
+                time.sleep(5)  # Wait before retry if it's not a shutdown
 
-@app.route("/reboot", methods=["POST"])
-def reboot():
-    system = platform.system()
-    if system == "Windows":
-        os.system("shutdown /r /t 1")
-    elif system == "Linux":
-        os.system("sudo /usr/sbin/reboot")
-    return jsonify({"message": "Rebooting..."})
+# ---------- SIGNAL HANDLERS ----------
 
+def signal_handler(sig, frame):
+    print("\nShutting down gracefully...")
+    
+    # Set shutdown event for background threads
+    shutdown_event.set()
+    
+    # Wait for background threads to finish
+    for thread in background_threads:
+        if thread.is_alive():
+            print(f"Waiting for thread {thread.name} to finish...")
+            thread.join(timeout=5)
+    
+    print("Shutdown complete.")
+    sys.exit(0)
 
+# Register the signal handlers
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
+
+# ---------- RUN THE APP ----------
 
 if __name__ == '__main__':
-    # Start background thread for sending stats
-    stats_thread = threading.Thread(target=background_task)
-    stats_thread.daemon = True
+    # Start background threads and keep track of them
+    stats_thread = threading.Thread(target=background_task, daemon=True, name="stats_thread")
     stats_thread.start()
+    background_threads.append(stats_thread)
     
-    socketio.run(app, debug=True)
+    ws_thread = threading.Thread(target=start_websocket_server, daemon=True, name="websocket_thread")
+    ws_thread.start()
+    background_threads.append(ws_thread)
+    
+    try:
+        print("Starting Flask application...")
+        socketio.run(app, debug=False, use_reloader=False)
+    except KeyboardInterrupt:
+        print("\nKeyboardInterrupt received...")
+        # Let the signal handler do its job
+    except Exception as e:
+        print(f"Error starting application: {e}")
+        # Set shutdown event and exit without using socketio.stop()
+        shutdown_event.set()
+        for thread in background_threads:
+            if thread.is_alive():
+                thread.join(timeout=2)
+        sys.exit(1)
