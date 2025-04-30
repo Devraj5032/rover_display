@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QPushButton, QLabel, QMessageBox
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
-from PyQt5.QtCore import QUrl, Qt, QEvent
+from PyQt5.QtCore import QUrl, Qt
 
 PASSWORD = "1234"
 
@@ -12,7 +12,7 @@ class PasswordDialog(QDialog):
     def __init__(self, prompt="Enter Password"):
         super().__init__()
         self.setWindowTitle(prompt)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout()
         self.label = QLabel(prompt)
         self.input = QLineEdit()
@@ -36,19 +36,16 @@ class KioskApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Secure Kiosk App")
-
-        # Prevent minimize/maximize/close buttons
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-
-        # Setup browser
         self.browser = QWebEngineView()
         self.setCentralWidget(self.browser)
 
+        # Enable JavaScript and WebSockets
         settings = self.browser.settings()
         settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
         settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
 
+        # Load the local Flask server
         self.browser.load(QUrl("http://127.0.0.1:5000/"))
 
         self.showFullScreen()
@@ -64,16 +61,9 @@ class KioskApp(QMainWindow):
         if event.key() in [Qt.Key_Escape, Qt.Key_Q]:
             self.close()
 
-    def changeEvent(self, event):
-        if event.type() == QEvent.WindowStateChange:
-            if self.windowState() & Qt.WindowMinimized:
-                self.setWindowState(Qt.WindowNoState)
-                self.showFullScreen()
-
 def main():
     app = QApplication(sys.argv)
 
-    # Startup password prompt
     password_prompt = PasswordDialog("Enter Password to Start")
     if not (password_prompt.exec_() and password_prompt.accepted):
         sys.exit()

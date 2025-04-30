@@ -7,6 +7,7 @@ import platform
 import time
 import threading
 import mysql.connector
+import traceback
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -22,15 +23,16 @@ def get_db_connection():
         database="rovers"  # Replace with your DB name
     )
 
-# Route to insert health check logs into MySQL
 @app.route('/logHealthCheckRPI', methods=['POST'])
 def log_health_check_rpi():
     try:
-        data = request.get_json()  # Get JSON data from the request
+        data = request.get_json()
+        print("Received data:", data)
 
-        print(data)
+        if not data:
+            return jsonify({"message": "No JSON data received"}), 400
 
-        # Parse the data from the request
+        # Extract values with fallback defaults (for debugging phase)
         rover_id = data.get('rover_id')
         rpi_id = data.get('rpi_id')
         device_id = data.get('device_id')
@@ -42,11 +44,16 @@ def log_health_check_rpi():
         location_z = data.get('location_z')
         remarks = data.get('remarks')
 
-        # Connect to the database
+        # Basic validation (optional)
+        required_fields = ['rover_id', 'rpi_id', 'device_id', 'check_status', 'check_value', 'date_time']
+        for field in required_fields:
+            if data.get(field) is None:
+                return jsonify({"message": f"Missing field: {field}"}), 400
+
+        # Insert into database
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Create the SQL insert query
         insert_query = """
             INSERT INTO loghealthcheckrpi (
                 rover_id, rpi_id, device_id, check_status, check_value, 
@@ -54,22 +61,20 @@ def log_health_check_rpi():
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
-        # Insert the data into the database
-        cursor.execute(insert_query, (rover_id, rpi_id, device_id, check_status, check_value, date_time, location_x, location_y, location_z, remarks))
-
-        # Commit the transaction
+        cursor.execute(insert_query, (
+            rover_id, rpi_id, device_id, check_status, check_value,
+            date_time, location_x, location_y, location_z, remarks
+        ))
         conn.commit()
-
-        # Close the cursor and connection
         cursor.close()
         conn.close()
 
-        # Return a success response
         return jsonify({"message": "Health check log inserted successfully"}), 201
 
     except Exception as e:
-        # In case of an error, return a failure response
-        return jsonify({"message": str(e)}), 500
+        print("Error:", e)
+        traceback.print_exc()  # Logs full stack trace
+        return jsonify({"message": "Server error", "error": str(e)}), 500
 
 
 # Route to fetch system stats (used in the stats page)
