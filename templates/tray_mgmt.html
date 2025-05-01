@@ -247,7 +247,7 @@
                 <div class="tray-icon">🍽️</div>
                 <h2 class="tray-title">Tray 3</h2>
                 <div class="table-info" id="table3">Table 4</div>
-                <button class="next-btn" onclick="nextTable(3)">Next</button>
+                <button class="next-btn" onclick="nextTable(3, true)">Next</button>
             </div>
         </div>
     </div>
@@ -255,6 +255,9 @@
     <div class="notification" id="notification">Order processed successfully!</div>
 
     <script>
+        // Track which tray was last processed
+        let lastProcessedTray = null;
+        
         // Function to parse URL parameters
         function getUrlParams() {
             const params = {};
@@ -279,7 +282,7 @@
         }
         
         // Function to handle "Next" button clicks with visual feedback
-        function nextTable(trayNumber) {
+        function nextTable(trayNumber, isLastTray = false) {
             const tray = document.getElementById(`tray${trayNumber}`);
             const button = tray.querySelector('.next-btn');
             const notification = document.getElementById('notification');
@@ -294,6 +297,20 @@
             const tableNumber = document.getElementById(`table${trayNumber}`).textContent.split(' ')[1];
             notification.textContent = `Order for Table ${tableNumber} processed successfully!`;
             notification.classList.add('show');
+            
+            // Store the last processed tray
+            lastProcessedTray = trayNumber;
+            
+            // If this is the last tray (tray 3), redirect to localhost:5000/
+            if (isLastTray) {
+                notification.textContent = `Order for Table ${tableNumber} processed successfully! Redirecting...`;
+                
+                setTimeout(() => {
+                    window.location.href = "http://localhost:5000/";
+                }, 2000);
+                
+                return;
+            }
             
             // Hide notification and reset after 2 seconds
             setTimeout(() => {
@@ -323,9 +340,8 @@
             // Simulate navigation (replace with actual navigation)
             setTimeout(() => {
                 notification.classList.remove('show');
-                // Here you would typically redirect to another page
-                // window.location.href = "chef.html";
-                alert("This would navigate to the chef view in a real application");
+                // Redirect to localhost:5000/
+                window.location.href = "http://localhost:5000/";
             }, 2000);
         }
         
