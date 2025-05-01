@@ -306,17 +306,41 @@
         renderTraySummary();
         renderNumpad();
       }
+      async function submitData() {
+        try {
+          const response = await fetch(
+            "http://127.0.0.1:5000/get-table-array",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ trays }),
+            }
+          );
 
-      function submitData() {
-        showToast(1500);
-        console.log(trays);
-        const table1 = trays[1] || "";
-        const table2 = trays[2] || "";
-        const table3 = trays[3] || "";
-        const query = `?table1=${table1}&table2=${table2}&table3=${table3}`;
-        setTimeout(() => {
-          window.location.href = `http://localhost:5000/tray_mgmt${query}`;
-        }, 1500); // wait for toast before redirect
+          if (!response.ok) {
+            throw new Error("Failed to submit data");
+          }
+
+          showToast(1500);
+          console.log(trays);
+
+          const table1 = trays?.[1] || "";
+          const table2 = trays?.[2] || "";
+          const table3 = trays?.[3] || "";
+
+          const query = `?table1=${encodeURIComponent(
+            table1
+          )}&table2=${encodeURIComponent(table2)}&table3=${encodeURIComponent(
+            table3
+          )}`;
+
+          setTimeout(() => {
+            window.location.href = `http://localhost:5000/tray_mgmt${query}`;
+          }, 1500); // Wait for toast to complete
+        } catch (error) {
+          console.error("Error submitting data:", error);
+          // Optionally show an error toast
+        }
       }
 
       // Function to navigate to stats page
