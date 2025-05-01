@@ -11,8 +11,13 @@ import json
 import shortuuid
 import signal
 import sys
+import traceback
 from websocket_server import WebsocketServer
 
+# Optional MySQL support (commented out as in original)
+# import mysql.connector
+
+# Initialize Flask app
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -21,6 +26,17 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 shutdown_event = threading.Event()
 background_threads = []
 ws_server = None
+
+# ---------- DATABASE CONNECTIONS ----------
+
+# MySQL connection setup (commented out as in original)
+# def get_db_connection():
+#     return mysql.connector.connect(
+#         host="rovers.cjc26ma2u8ql.us-east-1.rds.amazonaws.com",
+#         user="admin",
+#         password="password",
+#         database="rovers"
+#     )
 
 # ---------- DATABASE INITIALIZATION ----------
 
@@ -108,16 +124,121 @@ def start_websocket_server():
         except Exception as e:
             print(f"Error closing WebSocket server: {e}")
 
+# ---------- SYSTEM STATS LOGIC ----------
+
+def get_system_stats():
+    # Gather system info
+    cpu_overall_percent = psutil.cpu_percent(interval=1)
+    cpu_per_core_percent = psutil.cpu_percent(interval=1, percpu=True)
+    cpu_count_logical = psutil.cpu_count(logical=True)
+    cpu_count_physical = psutil.cpu_count(logical=False)
+    cpu_freq = psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {}
+    load_avg = os.getloadavg() if hasattr(os, 'getloadavg') else [None, None, None]
+    memory = psutil.virtual_memory()._asdict()
+
+    # Gather top 10 processes by CPU usage
+    processes = []
+    for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent', 'cmdline']):
+        try:
+            processes.append(proc.info)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    # Sort processes by CPU usage, descending and get top 10
+    top_processes = sorted(processes, key=lambda p: p['cpu_percent'], reverse=True)[:10]
+
+    # Format command line nicely
+    for p in top_processes:
+        p['cmdline'] = ' '.join(p['cmdline']) if p['cmdline'] else ''
+
+    return {
+        "cpu_overall_percent": cpu_overall_percent,
+        "cpu_per_core_percent": cpu_per_core_percent,
+        "cpu_count_logical": cpu_count_logical,
+        "cpu_count_physical": cpu_count_physical,
+        "cpu_freq": cpu_freq,
+        "load_avg": load_avg,
+        "memory": memory,
+        "top_processes": top_processes
+    }
+
 # ---------- ROUTES ----------
 
+# Route to display index.html
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# Route to display tray management page
+@app.route('/tray_mgmt')
+def tray_mgmt():
+    return render_template('tray_mgmt.html')
+
+# Route to display stats page
 @app.route('/stats-page')
 def stats_page():
     return render_template('stats.html')
 
+# Keep the REST endpoint for backward compatibility
+@app.route("/stats")
+def stats():
+    return jsonify(get_system_stats())
+
+# Health check logging route (commented out as in original)
+# @app.route('/logHealthCheckRPI', methods=['POST'])
+# def log_health_check_rpi():
+#     try:
+#         data = request.get_json()
+#         print("Received data:", data)
+#
+#         if not data:
+#             return jsonify({"message": "No JSON data received"}), 400
+#
+#         # Extract values with fallback defaults (for debugging phase)
+#         rover_id = data.get('rover_id')
+#         rpi_id = data.get('rpi_id')
+#         device_id = data.get('device_id')
+#         check_status = data.get('check_status')
+#         check_value = data.get('check_value')
+#         date_time = data.get('date_time')
+#         location_x = data.get('location_x')
+#         location_y = data.get('location_y')
+#         location_z = data.get('location_z')
+#         remarks = data.get('remarks')
+#
+#         # Basic validation (optional)
+#         required_fields = ['rover_id', 'rpi_id', 'device_id', 'check_status', 'check_value', 'date_time']
+#         for field in required_fields:
+#             if data.get(field) is None:
+#                 return jsonify({"message": f"Missing field: {field}"}), 400
+#
+#         # Insert into database
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
+#
+#         insert_query = """
+#             INSERT INTO loghealthcheckrpi (
+#                 rover_id, rpi_id, device_id, check_status, check_value, 
+#                 date_time, location_x, location_y, location_z, remarks
+#             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#         """
+#
+#         cursor.execute(insert_query, (
+#             rover_id, rpi_id, device_id, check_status, check_value,
+#             date_time, location_x, location_y, location_z, remarks
+#         ))
+#         conn.commit()
+#         cursor.close()
+#         conn.close()
+#
+#         return jsonify({"message": "Health check log inserted successfully"}), 201
+#
+#     except Exception as e:
+#         print("Error:", e)
+#         traceback.print_exc()  # Logs full stack trace
+#         return jsonify({"message": "Server error", "error": str(e)}), 500
+
+# Tray management route
 @app.route('/get-table-array', methods=['POST'])
 def get_table_array():
     data = request.get_json()
@@ -148,11 +269,8 @@ def get_table_array():
 
     return jsonify(tray_array)
 
-@app.route('/stats')
-def stats():
-    return jsonify(get_system_stats())
-
-@app.route('/reboot', methods=['POST'])
+# Route to trigger system reboot
+@app.route("/reboot", methods=["POST"])
 def reboot():
     system = platform.system()
     if system == "Windows":
@@ -160,37 +278,6 @@ def reboot():
     elif system == "Linux":
         os.system("sudo /usr/sbin/reboot")
     return jsonify({"message": "Rebooting..."})
-
-# ---------- SYSTEM STATS LOGIC ----------
-
-def get_system_stats():
-    cpu_overall_percent = psutil.cpu_percent(interval=1)
-    cpu_per_core_percent = psutil.cpu_percent(interval=1, percpu=True)
-    cpu_freq = psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {}
-    load_avg = os.getloadavg() if hasattr(os, 'getloadavg') else [None] * 3
-    memory = psutil.virtual_memory()._asdict()
-
-    processes = []
-    for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent', 'cmdline']):
-        try:
-            processes.append(proc.info)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-
-    top_processes = sorted(processes, key=lambda p: p['cpu_percent'], reverse=True)[:10]
-    for p in top_processes:
-        p['cmdline'] = ' '.join(p['cmdline']) if p['cmdline'] else ''
-
-    return {
-        "cpu_overall_percent": cpu_overall_percent,
-        "cpu_per_core_percent": cpu_per_core_percent,
-        "cpu_count_logical": psutil.cpu_count(logical=True),
-        "cpu_count_physical": psutil.cpu_count(logical=False),
-        "cpu_freq": cpu_freq,
-        "load_avg": load_avg,
-        "memory": memory,
-        "top_processes": top_processes
-    }
 
 # ---------- SOCKET.IO EVENTS ----------
 
@@ -206,6 +293,7 @@ def handle_disconnect():
 def handle_request_stats():
     emit('stats_update', get_system_stats())
 
+# Background task to emit system stats every second
 def background_task():
     print("Starting background stats task...")
     while not shutdown_event.is_set():
