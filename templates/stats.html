@@ -24,6 +24,26 @@
           0 2px 4px -1px rgba(0, 0, 0, 0.06);
       }
 
+      .stats-button {
+        background-color: #ffffff;
+        color: #4f46e5;
+        border: none;
+        padding: 0.5rem 1rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .stats-button:hover {
+        background-color: #eef2ff;
+        transform: translateY(-2px);
+      }
+
+      .stats-button:active {
+        transform: translateY(1px);
+      }
+
       .dark-theme {
         --bg-primary: #111827;
         --bg-secondary: #1f2937;
@@ -440,8 +460,11 @@
     <div class="dashboard">
       <div class="header">
         <h1 class="title">System Monitor</h1>
-        <div style="display: flex; align-items: center;">
-          <div id="connection-status" class="connection-status status-disconnected">
+        <div style="display: flex; align-items: center">
+          <div
+            id="connection-status"
+            class="connection-status status-disconnected"
+          >
             <div class="status-indicator indicator-disconnected"></div>
             <span>Disconnected</span>
           </div>
@@ -451,6 +474,11 @@
           </button>
         </div>
       </div>
+
+      <header>
+        <!-- <h1>Tray Selector</h1> -->
+        <button class="stats-button" onclick="goToStats()">Return</button>
+      </header>
 
       <div class="grid">
         <div class="card">
@@ -562,9 +590,7 @@
         </div>
         <div class="modal-actions">
           <button id="cancel-shutdown" class="btn btn-secondary">Cancel</button>
-          <button id="confirm-shutdown" class="btn btn-danger">
-            Reboot
-          </button>
+          <button id="confirm-shutdown" class="btn btn-danger">Reboot</button>
         </div>
       </div>
     </div>
@@ -594,6 +620,10 @@
       const savedTheme = localStorage.getItem("theme");
       if (savedTheme === "dark") {
         setTheme(true);
+      }
+
+      function goToStats() {
+        window.location.href = "http://localhost:5000/";
       }
 
       themeToggle.addEventListener("click", () => {
@@ -675,18 +705,23 @@
 
       // Update connection status UI
       function updateConnectionStatus(connected) {
-        const statusElement = document.getElementById('connection-status');
-        const statusIndicator = statusElement.querySelector('.status-indicator');
-        
+        const statusElement = document.getElementById("connection-status");
+        const statusIndicator =
+          statusElement.querySelector(".status-indicator");
+
         if (connected) {
-          statusElement.className = 'connection-status status-connected';
-          statusIndicator.className = 'status-indicator indicator-connected';
-          statusElement.querySelector('span').textContent = 'Connected';
+          statusElement.className = "connection-status status-connected";
+          statusIndicator.className = "status-indicator indicator-connected";
+          statusElement.querySelector("span").textContent = "Connected";
         } else {
-          statusElement.className = 'connection-status status-disconnected';
-          statusIndicator.className = 'status-indicator indicator-disconnected';
-          statusElement.querySelector('span').textContent = 'Disconnected';
+          statusElement.className = "connection-status status-disconnected";
+          statusIndicator.className = "status-indicator indicator-disconnected";
+          statusElement.querySelector("span").textContent = "Disconnected";
         }
+      }
+
+      function goToTray() {
+        window.location.href = "http://localhost:5000/";
       }
 
       // Update UI with system stats
@@ -694,20 +729,26 @@
         // CPU Overall
         const cpuUsage = data.cpu_overall_percent;
         document.getElementById("cpu-overall").textContent = `${cpuUsage}%`;
-        document.getElementById("cpu-overall-badge").textContent = `${cpuUsage}%`;
+        document.getElementById(
+          "cpu-overall-badge"
+        ).textContent = `${cpuUsage}%`;
         document.getElementById("cpu-progress").style.width = `${cpuUsage}%`;
 
         // CPU Cores
         updateCoreUsage(data.cpu_per_core_percent);
 
         // CPU Info
-        document.getElementById("cpu-logical").textContent = data.cpu_count_logical;
-        document.getElementById("cpu-physical").textContent = data.cpu_count_physical;
+        document.getElementById("cpu-logical").textContent =
+          data.cpu_count_logical;
+        document.getElementById("cpu-physical").textContent =
+          data.cpu_count_physical;
 
         // CPU Frequency
         const freq = data.cpu_freq;
         document.getElementById("cpu-freq").textContent = freq.current
-          ? `${freq.current.toFixed(1)} MHz (Min: ${freq.min} / Max: ${freq.max})`
+          ? `${freq.current.toFixed(1)} MHz (Min: ${freq.min} / Max: ${
+              freq.max
+            })`
           : "N/A";
 
         // Memory
@@ -716,9 +757,15 @@
         const totalMB = Math.round(mem.total / 1024 / 1024);
         const memPercentage = Math.round((mem.used / mem.total) * 100);
 
-        document.getElementById("mem").textContent = `${usedMB} MB / ${totalMB} MB`;
-        document.getElementById("memory-percentage").textContent = `${memPercentage}%`;
-        document.getElementById("memory-progress").style.width = `${memPercentage}%`;
+        document.getElementById(
+          "mem"
+        ).textContent = `${usedMB} MB / ${totalMB} MB`;
+        document.getElementById(
+          "memory-percentage"
+        ).textContent = `${memPercentage}%`;
+        document.getElementById(
+          "memory-progress"
+        ).style.width = `${memPercentage}%`;
 
         // Top processes
         if (data.top_processes && Array.isArray(data.top_processes)) {
@@ -753,32 +800,32 @@
       }
 
       // Socket.IO connection
-      const socket = io('http://127.0.0.1:5000');
+      const socket = io("http://127.0.0.1:5000");
 
       // Socket.IO event handlers
-      socket.on('connect', () => {
-        console.log('Connected to server');
+      socket.on("connect", () => {
+        console.log("Connected to server");
         updateConnectionStatus(true);
-        
+
         // Request initial stats
-        socket.emit('request_stats');
+        socket.emit("request_stats");
       });
 
-      socket.on('disconnect', () => {
-        console.log('Disconnected from server');
+      socket.on("disconnect", () => {
+        console.log("Disconnected from server");
         updateConnectionStatus(false);
       });
 
-      socket.on('stats_update', (data) => {
-        console.log('Received stats update');
+      socket.on("stats_update", (data) => {
+        console.log("Received stats update");
         updateStats(data);
       });
 
       // Fallback to REST API if Socket.IO fails
-      socket.on('connect_error', () => {
-        console.log('Socket.IO connection failed, falling back to REST API');
+      socket.on("connect_error", () => {
+        console.log("Socket.IO connection failed, falling back to REST API");
         updateConnectionStatus(false);
-        
+
         // Use the old fetch method as fallback
         fetchStats();
       });
