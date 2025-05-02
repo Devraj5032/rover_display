@@ -222,7 +222,6 @@
     <div class="container">
         <div class="header">
             <div class="logo-container">
-                <!-- Using a data URI for a placeholder logo with purple color -->
                 <img src="https://greenquest.com.sg/img/logo.png" alt="Restaurant Logo" class="logo">
             </div>
             <button class="return-btn" onclick="returnToChef()">Return to Chef</button>
@@ -258,6 +257,9 @@
         // Track which tray was last processed
         let lastProcessedTray = null;
         
+        // API endpoint for "Return to Chef"
+        const RETURN_TO_CHEF_API = "http://localhost:5000/return-to-chef";
+        
         // Function to parse URL parameters
         function getUrlParams() {
             const params = {};
@@ -281,6 +283,52 @@
             document.getElementById('table3').textContent = `Table ${params.table3}`;
         }
         
+        // Function to call the "Return to Chef" API
+        async function callReturnToChefAPI() {
+            try {
+                const notification = document.getElementById('notification');
+                notification.textContent = "Calling Return to Chef API...";
+                notification.classList.add('show');
+                
+                // Call the API
+                const response = await fetch(RETURN_TO_CHEF_API, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'return_to_chef',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                if (response.ok) {
+                    notification.textContent = "Successfully returned to chef!";
+                    
+                    // Redirect after successful API call
+                    setTimeout(() => {
+                        window.location.href = "http://localhost:5000/";
+                    }, 1500);
+                } else {
+                    notification.textContent = "Error calling API. Redirecting anyway...";
+                    
+                    // Redirect even if API fails
+                    setTimeout(() => {
+                        window.location.href = "http://localhost:5000/";
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error("Error calling Return to Chef API:", error);
+                const notification = document.getElementById('notification');
+                notification.textContent = "Error calling API. Redirecting anyway...";
+                
+                // Redirect even if API fails
+                setTimeout(() => {
+                    window.location.href = "http://localhost:5000/";
+                }, 1500);
+            }
+        }
+        
         // Function to handle "Next" button clicks with visual feedback
         function nextTable(trayNumber, isLastTray = false) {
             const tray = document.getElementById(`tray${trayNumber}`);
@@ -301,13 +349,14 @@
             // Store the last processed tray
             lastProcessedTray = trayNumber;
             
-            // If this is the last tray (tray 3), redirect to localhost:5000/
+            // If this is the last tray (tray 3), call the API and redirect
             if (isLastTray) {
-                notification.textContent = `Order for Table ${tableNumber} processed successfully! Redirecting...`;
+                notification.textContent = `Order for Table ${tableNumber} processed successfully! Returning to chef...`;
                 
+                // Call the Return to Chef API
                 setTimeout(() => {
-                    window.location.href = "http://localhost:5000/";
-                }, 2000);
+                    callReturnToChefAPI();
+                }, 1000);
                 
                 return;
             }
@@ -337,12 +386,8 @@
             notification.textContent = "Returning to chef view...";
             notification.classList.add('show');
             
-            // Simulate navigation (replace with actual navigation)
-            setTimeout(() => {
-                notification.classList.remove('show');
-                // Redirect to localhost:5000/
-                window.location.href = "http://localhost:5000/";
-            }, 2000);
+            // Call the Return to Chef API
+            callReturnToChefAPI();
         }
         
         // Initialize the page when loaded
