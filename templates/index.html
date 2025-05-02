@@ -1,5 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE
+html >
+  <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -203,12 +204,53 @@
         opacity: 1;
         transform: translateY(0);
       }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        margin-right: 1rem;
+        font-size: 0.875rem;
+      }
+
+      .indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+
+      .indicator.connected {
+        background-color: #10b981;
+        box-shadow: 0 0 5px #10b981;
+      }
+
+      .indicator.disconnected {
+        background-color: #ef4444;
+        box-shadow: 0 0 5px #ef4444;
+      }
+
+      .indicator.connecting {
+        background-color: #f59e0b;
+        box-shadow: 0 0 5px #f59e0b;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <header>
         <h1>Tray Selector</h1>
+        <div class="connection-status">
+          <span id="connection-indicator" class="indicator disconnected"></span>
+          <span id="connection-text">Disconnected</span>
+        </div>
         <button class="stats-button" onclick="goToStats()">View Stats</button>
       </header>
 
@@ -230,6 +272,59 @@
       const traySummary = document.getElementById("tray-summary");
       const numpad = document.getElementById("numpad");
       const toast = document.getElementById("toast");
+      const connectionIndicator = document.getElementById("connection-indicator");
+      const connectionText = document.getElementById("connection-text");
+      let socket = null;
+      let reconnectAttempts = 0;
+      const maxReconnectAttempts = 5;
+      const reconnectDelay = 3000;
+
+      function connectWebSocket() {
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+          return; // Already connected or connecting
+        }
+        
+        updateConnectionStatus("connecting", "Connecting...");
+        
+        try {
+          socket = new WebSocket("ws://127.0.0.1:48236");
+          
+          socket.onopen = function() {
+            console.log("WebSocket connected");
+            updateConnectionStatus("connected", "Connected");
+            reconnectAttempts = 0;
+          };
+          
+          socket.onclose = function() {
+            console.log("WebSocket disconnected");
+            updateConnectionStatus("disconnected", "Disconnected");
+            
+            // Attempt to reconnect
+            if (reconnectAttempts < maxReconnectAttempts) {
+              reconnectAttempts++;
+              setTimeout(connectWebSocket, reconnectDelay);
+            }
+          };
+          
+          socket.onerror = function(error) {
+            console.error("WebSocket error:", error);
+            updateConnectionStatus("disconnected", "Connection Error");
+          };
+          
+          socket.onmessage = function(event) {
+            console.log("WebSocket message received:", event.data);
+            // Handle incoming messages if needed
+          };
+        } catch (error) {
+          console.error("Error creating WebSocket:", error);
+          updateConnectionStatus("disconnected", "Connection Error");
+        }
+      }
+
+      function updateConnectionStatus(status, text) {
+        connectionIndicator.className = `indicator ${status}`;
+        connectionText.textContent = text;
+      }
 
       let currentTray = 1;
       const trays = { 1: null, 2: null, 3: null };
@@ -363,6 +458,7 @@
       document.addEventListener("DOMContentLoaded", () => {
         initializeUI();
         requestFullscreen();
+        connectWebSocket();
       });
 
       // Prevent ESC key from exiting fullscreen
