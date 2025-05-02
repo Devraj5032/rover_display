@@ -75,6 +75,11 @@ def client_left(client, server):
 def message_received(client, server, message):
     try:
         data = json.loads(message)
+        if data.get("type") == "ping":
+            # Respond to ping with pong
+            server.send_message(client, json.dumps({"type": "pong"}))
+            return
+            
         if data.get("type") == "waypoint_result" and data.get("sequence"):
             print(f"Received sequence for order {data['order']}: {data['sequence']}")
             with sqlite3.connect('tray_orders.db') as conn:
@@ -109,7 +114,7 @@ def start_websocket_server():
             break
         except OSError:
             print(f"Port {port} in use, retrying...")
-            port += 1
+            # port += 1
             time.sleep(1)
     
     # Keep thread alive until shutdown is requested
@@ -123,6 +128,20 @@ def start_websocket_server():
             ws_server.server_close()
         except Exception as e:
             print(f"Error closing WebSocket server: {e}")
+
+def send_heartbeat():
+    """Send heartbeat to all connected clients every 30 seconds"""
+    while not shutdown_event.is_set():
+        if ws_server and clients:
+            for client in list(clients):  # Use a copy of the list to avoid modification during iteration
+                try:
+                    ws_server.send_message(client, json.dumps({"type": "heartbeat"}))
+                except Exception as e:
+                    print(f"Error sending heartbeat to client {client['id']}: {e}")
+                    # Client might be disconnected but not properly removed
+                    if client in clients:
+                        clients.remove(client)
+        time.sleep(30)  # Send heartbeat every 30 seconds
 
 # ---------- SYSTEM STATS LOGIC ----------
 
@@ -243,6 +262,7 @@ def stats():
 def get_table_array():
     data = request.get_json()
     trays = data.get('trays', {})
+    print(data)
     tray_array = [f"T{value}" for value in trays.values()]
     order_id = shortuuid.uuid()
 
@@ -338,6 +358,11 @@ if __name__ == '__main__':
     ws_thread = threading.Thread(target=start_websocket_server, daemon=True, name="websocket_thread")
     ws_thread.start()
     background_threads.append(ws_thread)
+    
+    # Add heartbeat thread
+    heartbeat_thread = threading.Thread(target=send_heartbeat, daemon=True, name="heartbeat_thread")
+    heartbeat_thread.start()
+    background_threads.append(heartbeat_thread)
     
     try:
         print("Starting Flask application...")
