@@ -67,11 +67,9 @@ init_db()
 clients = []
 
 def new_client(client, server):
-    print(f"New client connected: {server}")
     clients.append(client)
 
 def client_left(client, server):
-    print(f"Client {client['id']} disconnected")
     if client in clients:
         clients.remove(client)
 
