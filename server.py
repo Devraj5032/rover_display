@@ -1,6 +1,3 @@
-
-
-
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
@@ -17,6 +14,7 @@ import sys
 import traceback
 from websocket_server import WebsocketServer
 
+active = 0
 # Optional MySQL support (commented out as in original)
 # import mysql.connector
 
@@ -67,11 +65,17 @@ init_db()
 clients = []
 
 def new_client(client, server):
+    print(f"New client connected: {client['id']}")
+    global active
     clients.append(client)
+    active += 1
 
 def client_left(client, server):
+    print(f"Client {client['id']} disconnected")
     if client in clients:
+        global active
         clients.remove(client)
+        active -= 1
 
 def message_received(client, server, message):
     try:
@@ -159,6 +163,7 @@ def get_system_stats():
         p['cmdline'] = ' '.join(p['cmdline']) if p['cmdline'] else ''
 
     return {
+        "active": active,
         "cpu_overall_percent": cpu_overall_percent,
         "cpu_per_core_percent": cpu_per_core_percent,
         "cpu_count_logical": cpu_count_logical,
@@ -346,6 +351,11 @@ if __name__ == '__main__':
     ws_thread = threading.Thread(target=start_websocket_server, daemon=True, name="websocket_thread")
     ws_thread.start()
     background_threads.append(ws_thread)
+    
+    # Add heartbeat thread
+    # heartbeat_thread = threading.Thread(target=send_heartbeat, daemon=True, name="heartbeat_thread")
+    # heartbeat_thread.start()
+    # background_threads.append(heartbeat_thread)
     
     try:
         print("Starting Flask application...")
