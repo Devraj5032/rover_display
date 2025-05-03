@@ -1,6 +1,5 @@
-<!DOCTYPE
-html >
-  <html lang="en">
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -237,9 +236,15 @@ html >
       }
 
       @keyframes pulse {
-        0% { opacity: 0.6; }
-        50% { opacity: 1; }
-        100% { opacity: 0.6; }
+        0% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.6;
+        }
       }
     </style>
   </head>
@@ -272,51 +277,61 @@ html >
       const traySummary = document.getElementById("tray-summary");
       const numpad = document.getElementById("numpad");
       const toast = document.getElementById("toast");
-      const connectionIndicator = document.getElementById("connection-indicator");
+      const connectionIndicator = document.getElementById(
+        "connection-indicator"
+      );
       const connectionText = document.getElementById("connection-text");
-      let socket = null;
+      let socket;
       let reconnectAttempts = 0;
       const maxReconnectAttempts = 5;
-      const reconnectDelay = 3000;
+      const reconnectDelay = 2000; // milliseconds
 
       function connectWebSocket() {
-        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-          return; // Already connected or connecting
+        if (socket && socket.connected) {
+          return; // Already connected
         }
-        
+
         updateConnectionStatus("connecting", "Connecting...");
-        
+
         try {
-          socket = new WebSocket("ws://127.0.0.1:48236");
-          
-          socket.onopen = function() {
-            console.log("WebSocket connected");
+          socket = io("http://127.0.0.1:48236", {
+            reconnectionAttempts: maxReconnectAttempts,
+            reconnectionDelay: reconnectDelay,
+          });
+
+          socket.on("connect", () => {
+            console.log("Socket.IO connected");
             updateConnectionStatus("connected", "Connected");
             reconnectAttempts = 0;
-          };
-          
-          socket.onclose = function() {
-            console.log("WebSocket disconnected");
+
+            // Request initial stats or any other startup logic
+            socket.emit("request_stats");
+          });
+
+          socket.on("disconnect", () => {
+            console.log("Socket.IO disconnected");
             updateConnectionStatus("disconnected", "Disconnected");
-            
-            // Attempt to reconnect
-            if (reconnectAttempts < maxReconnectAttempts) {
-              reconnectAttempts++;
-              setTimeout(connectWebSocket, reconnectDelay);
-            }
-          };
-          
-          socket.onerror = function(error) {
-            console.error("WebSocket error:", error);
+          });
+
+          socket.on("stats_update", (data) => {
+            console.log("Received stats update:", data);
+            updateStats(data);
+          });
+
+          socket.on("connect_error", (error) => {
+            console.error("Socket.IO connection error:", error);
             updateConnectionStatus("disconnected", "Connection Error");
-          };
-          
-          socket.onmessage = function(event) {
-            console.log("WebSocket message received:", event.data);
-            // Handle incoming messages if needed
-          };
+
+            reconnectAttempts++;
+            if (reconnectAttempts >= maxReconnectAttempts) {
+              console.warn(
+                "Max reconnect attempts reached. Falling back to REST API."
+              );
+              fetchStats(); // Fallback logic
+            }
+          });
         } catch (error) {
-          console.error("Error creating WebSocket:", error);
+          console.error("Error initializing Socket.IO:", error);
           updateConnectionStatus("disconnected", "Connection Error");
         }
       }
