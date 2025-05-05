@@ -252,10 +252,6 @@
     <div class="container">
       <header>
         <h1>Tray Selector</h1>
-        <div class="connection-status">
-          <span id="connection-indicator" class="indicator disconnected"></span>
-          <span id="connection-text">Disconnected</span>
-        </div>
         <button class="stats-button" onclick="goToStats()">View Stats</button>
       </header>
 
@@ -281,60 +277,6 @@
         "connection-indicator"
       );
       const connectionText = document.getElementById("connection-text");
-      let socket;
-      let reconnectAttempts = 0;
-      const maxReconnectAttempts = 5;
-      const reconnectDelay = 2000; // milliseconds
-
-      function connectWebSocket() {
-        if (socket && socket.connected) {
-          return; // Already connected
-        }
-
-        updateConnectionStatus("connecting", "Connecting...");
-
-        try {
-          socket = io("http://127.0.0.1:48236", {
-            reconnectionAttempts: maxReconnectAttempts,
-            reconnectionDelay: reconnectDelay,
-          });
-
-          socket.on("connect", () => {
-            console.log("Socket.IO connected");
-            updateConnectionStatus("connected", "Connected");
-            reconnectAttempts = 0;
-
-            // Request initial stats or any other startup logic
-            socket.emit("request_stats");
-          });
-
-          socket.on("disconnect", () => {
-            console.log("Socket.IO disconnected");
-            updateConnectionStatus("disconnected", "Disconnected");
-          });
-
-          socket.on("stats_update", (data) => {
-            console.log("Received stats update:", data);
-            updateStats(data);
-          });
-
-          socket.on("connect_error", (error) => {
-            console.error("Socket.IO connection error:", error);
-            updateConnectionStatus("disconnected", "Connection Error");
-
-            reconnectAttempts++;
-            if (reconnectAttempts >= maxReconnectAttempts) {
-              console.warn(
-                "Max reconnect attempts reached. Falling back to REST API."
-              );
-              fetchStats(); // Fallback logic
-            }
-          });
-        } catch (error) {
-          console.error("Error initializing Socket.IO:", error);
-          updateConnectionStatus("disconnected", "Connection Error");
-        }
-      }
 
       function updateConnectionStatus(status, text) {
         connectionIndicator.className = `indicator ${status}`;
@@ -431,8 +373,10 @@
             throw new Error("Failed to submit data");
           }
 
+          const data = await response.json(); // get tray_array and order_id from backend
+          const { order_id } = data;
+
           showToast(1500);
-          console.log(trays);
 
           const table1 = trays?.[1] || "";
           const table2 = trays?.[2] || "";
@@ -442,7 +386,7 @@
             table1
           )}&table2=${encodeURIComponent(table2)}&table3=${encodeURIComponent(
             table3
-          )}`;
+          )}&order_id=${encodeURIComponent(order_id)}`;
 
           setTimeout(() => {
             window.location.href = `http://localhost:5000/tray_mgmt${query}`;
