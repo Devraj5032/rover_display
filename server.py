@@ -282,6 +282,173 @@ def get_table_array():
 
     return jsonify(tray_array)
 
+
+@app.route('/return-to-chef', methods=['POST'])
+def return_to_chef():
+    try:
+        data = request.get_json()
+        print("Return to Chef API called:", data)
+        
+        # Log the action in the database
+        try:
+            with sqlite3.connect('tray_orders.db') as conn:
+                c = conn.cursor()
+                # Update the most recent active order to mark it as returned to chef
+                c.execute('''UPDATE tray_orders 
+                             SET success = 1, 
+                                 chef_table = 1
+                             WHERE id = (
+                                 SELECT id FROM tray_orders 
+                                 ORDER BY timestamp DESC 
+                                 LIMIT 1
+                             )''')
+                rows_affected = c.rowcount
+                conn.commit()
+                
+                if rows_affected > 0:
+                    print(f"Updated order status: returned to chef")
+                else:
+                    print("No active orders found to update")
+        except Exception as e:
+            print(f"Database error in return_to_chef: {e}")
+            traceback.print_exc()
+        
+        # Notify WebSocket clients if applicable
+        if ws_server and clients:
+            ws_message = json.dumps({
+                "type": "chef_return",
+                "timestamp": time.time(),
+                "status": "success"
+            })
+            for client in clients:
+                ws_server.send_message(client, ws_message)
+            print(f"Sent chef return notification to {len(clients)} WebSocket clients")
+        
+        return jsonify({
+            "status": "success",
+            "message": "Successfully returned to chef",
+            "timestamp": time.time()
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in return_to_chef API: {e}")
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": f"Server error: {str(e)}",
+            "timestamp": time.time()
+        }), 500
+
+
+@app.route('/next-table', methods=['POST'])
+def next_table():
+    try:
+        data = request.get_json()
+        current_table = data.get('table_number')
+        
+        if current_table is None:
+            return jsonify({
+                "status": "error",
+                "message": "Missing table_number parameter",
+                "timestamp": time.time()
+            }), 400
+        
+        print(f"Next Table API called for table {current_table}")
+        
+        try:
+            # Convert to integer if it's a string
+            if isinstance(current_table, str):
+                current_table = int(current_table)
+                
+            # Generate a new table number
+            # Option 1: Simple increment with wraparound
+            # next_table_number = (current_table % 20) + 1
+            
+            # Option 2: Random selection from available tables
+            available_tables = list(range(1, 21))  # Tables 1-20
+            if current_table in available_tables:
+                available_tables.remove(current_table)  # Don't reuse the current table
+            
+            next_table_number = random.choice(available_tables)
+            
+            # Log the table assignment in the database
+            with sqlite3.connect('tray_orders.db') as conn:
+                c = conn.cursor()
+                
+                # Mark the current table as no longer occupied
+                c.execute('''INSERT OR REPLACE INTO table_assignments 
+                             (table_number, is_occupied, last_updated) 
+                             VALUES (?, 0, DATETIME('now', 'localtime'))''', 
+                          (current_table,))
+                
+                # Mark the new table as occupied
+                c.execute('''INSERT OR REPLACE INTO table_assignments 
+                             (table_number, is_occupied, last_updated) 
+                             VALUES (?, 1, DATETIME('now', 'localtime'))''', 
+                          (next_table_number,))
+                
+                conn.commit()
+                
+            # Notify WebSocket clients if applicable
+            if ws_server and clients:
+                ws_message = json.dumps({
+                    "type": "table_assignment",
+                    "previous_table": current_table,
+                    "new_table": next_table_number,
+                    "timestamp": time.time()
+                })
+                for client in clients:
+                    ws_server.send_message(client, ws_message)
+                print(f"Sent table assignment notification to {len(clients)} WebSocket clients")
+            
+            return jsonify({
+                "status": "success",
+                "previous_table": current_table,
+                "table_number": next_table_number,
+                "timestamp": time.time()
+            }), 200
+            
+        except Exception as e:
+            print(f"Database error in next_table: {e}")
+            traceback.print_exc()
+            
+            # Even if there's a database error, still return a table number
+            fallback_table = (int(current_table) % 20) + 1
+            
+            return jsonify({
+                "status": "partial_success",
+                "message": "Generated new table but failed to log in database",
+                "previous_table": current_table,
+                "table_number": fallback_table,
+                "timestamp": time.time()
+            }), 200
+            
+    except Exception as e:
+        print(f"Error in next_table API: {e}")
+        traceback.print_exc()
+        
+        # Return a fallback table number even in case of error
+        try:
+            if current_table:
+                fallback_table = (int(current_table) % 20) + 1
+            else:
+                fallback_table = random.randint(1, 20)
+                
+            return jsonify({
+                "status": "error",
+                "message": f"Server error: {str(e)}",
+                "table_number": fallback_table,
+                "timestamp": time.time()
+            }), 500
+        except:
+            # Last resort fallback
+            return jsonify({
+                "status": "error",
+                "message": "Critical server error",
+                "table_number": 1,
+                "timestamp": time.time()
+            }), 500
+
 # Route to trigger system reboot
 @app.route("/reboot", methods=["POST"])
 def reboot():
