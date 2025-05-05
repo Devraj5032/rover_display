@@ -297,103 +297,31 @@ def get_table_array():
 
     # Notify all WebSocket clients
     if ws_server and clients:
-        ws_message = json.dumps({"order": order_id, "tray": tray_array})
+        ws_message = json.dumps({"order": order_id, 
+                                 "tray": tray_array,
+                                 "type": "waypoint_order",
+                                 })
         for client in clients:
             ws_server.send_message(client, ws_message)
         print(f"Sent tray order to {len(clients)} WebSocket clients.")
 
     return jsonify({"tray_array": tray_array, "order_id": order_id})
 
-
 @app.route("/return-to-chef", methods=["POST"])
 def return_to_chef():
     try:
         data = request.get_json()
-        print("Return to Chef API called:", data)
-
-        # Log the action in the database
-        try:
-            with sqlite3.connect("tray_orders.db") as conn:
-                c = conn.cursor()
-                # Update the most recent active order to mark it as returned to chef
-                c.execute(
-                    """UPDATE tray_orders 
-                             SET success = 1, 
-                                 chef_table = 1
-                             WHERE id = (
-                                 SELECT id FROM tray_orders 
-                                 ORDER BY timestamp DESC 
-                                 LIMIT 1
-                             )"""
-                )
-                rows_affected = c.rowcount
-                conn.commit()
-
-                if rows_affected > 0:
-                    print(f"Updated order status: returned to chef")
-                else:
-                    print("No active orders found to update")
-        except Exception as e:
-            print(f"Database error in return_to_chef: {e}")
-            traceback.print_exc()
-
-        # Notify WebSocket clients if applicable
-        if ws_server and clients:
-            ws_message = json.dumps(
-                {"type": "chef_return", "timestamp": time.time(), "status": "success"}
-            )
-            for client in clients:
-                ws_server.send_message(client, ws_message)
-            print(f"Sent chef return notification to {len(clients)} WebSocket clients")
-
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "message": "Successfully returned to chef",
-                    "timestamp": time.time(),
-                }
-            ),
-            200,
-        )
-
-    except Exception as e:
-        print(f"Error in return_to_chef API: {e}")
-        traceback.print_exc()
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": f"Server error: {str(e)}",
-                    "timestamp": time.time(),
-                }
-            ),
-            500,
-        )
-
-
-@app.route("/next-table", methods=["POST"])
-def next_table():
-    try:
-        data = request.get_json()
-        current_table = data.get("table_number")
         order_id = data.get("order_id")
 
-        print(f"Next Table API called for table {current_table}, order ID {order_id}")
+        print(f"cancel_waypoint API called for return to chef, order ID {order_id}")
 
         try:
-
-            # [Optional] Update database with order_id info
-            # ...
-
-            # Notify WebSocket clients if applicable
             if ws_server and clients:
                 ws_message = json.dumps(
                     {
-                        "type": "table_assignment",
-                        "previous_table": current_table,
-                        "order_id": order_id,
-                        "timestamp": time.time(),
+                        "type": "waypoint_cancel",
+                        "publish": True,
+                        "order_id": order_id
                     }
                 )
                 for client in clients:
@@ -406,7 +334,6 @@ def next_table():
                 jsonify(
                     {
                         "status": "success",
-                        "previous_table": current_table,
                         "order_id": order_id,
                         "timestamp": time.time(),
                     }
@@ -420,60 +347,90 @@ def next_table():
     except Exception as e:
         return jsonify({"status": "error", "message": "Invalid request"}), 400
 
-    except Exception as e:
-        print(f"Error in next_table API: {e}")
-        traceback.print_exc()
+@app.route("/next-table", methods=["POST"])
+def next_table():
+    try:
+        data = request.get_json()
+        order_id = data.get("order_id")
 
-        # Return a fallback table number even in case of error
+        print(f"Next Table API called for return to chef, order ID {order_id}")
+
         try:
-            if current_table:
-                fallback_table = (int(current_table) % 20) + 1
-            else:
-                fallback_table = random.randint(1, 20)
+
+            if ws_server and clients:
+                ws_message = json.dumps(
+                    {
+                        "type": "waypoint_next",
+                        "publish": True,
+                        "order_id": order_id
+                    }
+                )
+                for client in clients:
+                    ws_server.send_message(client, ws_message)
+                print(
+                    f"Sent table assignment notification to {len(clients)} WebSocket clients"
+                )
 
             return (
                 jsonify(
                     {
-                        "status": "error",
-                        "message": f"Server error: {str(e)}",
-                        "table_number": fallback_table,
+                        "status": "success",
+                        "order_id": order_id,
                         "timestamp": time.time(),
                     }
                 ),
-                500,
+                200,
             )
-        except:
-            # Last resort fallback
-            return (
-                jsonify(
-                    {
-                        "status": "error",
-                        "message": "Critical server error",
-                        "table_number": 1,
-                        "timestamp": time.time(),
-                    }
-                ),
-                500,
-            )
+
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
+
+
 
 
 # Back to main page
 @app.route("/return-home", methods=["POST"])
 def return_home():
-    data = request.get_json()
-    order_id = data.get("order_id")
-    # Last resort fallback
-    print(order_id)
-    return (
-        jsonify(
-            {
-                "status": "success",
-                "order_id": order_id,
-                "timestamp": time.time(),
-            }
-        ),
-        500,
-    )
+    try:
+        data = request.get_json()
+        order_id = data.get("order_id")
+
+        print(f"Next Table API called for return to chef, order ID {order_id}")
+        try:
+
+            if ws_server and clients:
+                ws_message = json.dumps(
+                    {
+                        "type": "waypoint_next",
+                        "publish": True,
+                        "order_id": order_id
+                    }
+                )
+                for client in clients:
+                    ws_server.send_message(client, ws_message)
+                print(
+                    f"Sent table assignment notification to {len(clients)} WebSocket clients"
+                )
+
+            return (
+                jsonify(
+                    {
+                        "status": "success",
+                        "order_id": order_id,
+                        "timestamp": time.time(),
+                    }
+                ),
+                200,
+            )
+
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
 
 
 # Route to trigger system reboot
@@ -565,7 +522,7 @@ if __name__ == "__main__":
 
     try:
         print("Starting Flask application...")
-        socketio.run(app, debug=True, use_reloader=True)
+        socketio.run(app, debug=False, use_reloader=False)
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt received...")
         # Let the signal handler do its job
