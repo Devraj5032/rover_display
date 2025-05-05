@@ -231,9 +231,12 @@
             class="logo"
           />
         </div>
-        <button class="return-btn" onclick="returnToChef()">
-          Return to Chef
-        </button>
+        <div>
+          <button class="return-btn" onclick="returnHome()">Return Home</button>
+          <button class="return-btn" onclick="returnToChef()">
+            Return to Chef
+          </button>
+        </div>
       </div>
 
       <div class="trays-container">
@@ -270,6 +273,7 @@
 
       // API endpoint for "Return to Chef"
       const RETURN_TO_CHEF_API = "http://localhost:5000/return-to-chef";
+      const RETURN_TO_HOME_API = "http://localhost:5000/return-home";
 
       // Function to parse URL parameters
       function getUrlParams() {
@@ -301,6 +305,55 @@
         ).textContent = `Table ${params.table3}`;
       }
 
+      // Function to call the "Return Home" API
+      async function returnHome() {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+        const orderId = urlParams.get("order_id");
+        const notification = document.getElementById("notification");
+
+        try {
+          if (notification) {
+            notification.textContent = "Returning home...";
+            notification.classList.add("show");
+          }
+
+          const response = await fetch(RETURN_TO_HOME_API, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              order_id: orderId,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+          }
+
+          // Optional: check for a response JSON body
+          // const result = await response.json();
+
+          setTimeout(() => {
+            window.location.href = "http://localhost:5000/";
+          }, 1500);
+        } catch (error) {
+          console.error("Error calling Return to home API:", error);
+
+          if (notification) {
+            notification.textContent =
+              "Error calling API. Redirecting anyway...";
+            notification.classList.add("show");
+          }
+
+          setTimeout(() => {
+            window.location.href = "http://localhost:5000/";
+          }, 1500);
+        }
+      }
+
       // Function to call the "Return to Chef" API
       async function callReturnToChefAPI() {
         try {
@@ -322,29 +375,14 @@
 
           if (response.ok) {
             notification.textContent = "Successfully returned to chef!";
-
-            // Redirect after successful API call
-            setTimeout(() => {
-              window.location.href = "http://localhost:5000/";
-            }, 1500);
           } else {
             notification.textContent =
               "Error calling API. Redirecting anyway...";
-
-            // Redirect even if API fails
-            setTimeout(() => {
-              window.location.href = "http://localhost:5000/";
-            }, 1500);
           }
         } catch (error) {
           console.error("Error calling Return to Chef API:", error);
           const notification = document.getElementById("notification");
           notification.textContent = "Error calling API. Redirecting anyway...";
-
-          // Redirect even if API fails
-          setTimeout(() => {
-            window.location.href = "http://localhost:5000/";
-          }, 1500);
         }
       }
 
@@ -377,7 +415,10 @@
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ table_number: tableNumber, order_id: orderId }),
+            body: JSON.stringify({
+              table_number: tableNumber,
+              order_id: orderId,
+            }),
           });
 
           const result = await response.json();
@@ -388,14 +429,6 @@
           console.log("API call successful:", result);
         } catch (error) {
           console.error("API call failed:", error);
-        }
-
-        // If last tray, call return to chef
-        if (isLastTray) {
-          notification.textContent = `Order for Table ${tableNumber} processed successfully! Returning to chef...`;
-          setTimeout(() => {
-            callReturnToChefAPI(); // Ensure this function exists
-          }, 1000);
         }
       }
 
