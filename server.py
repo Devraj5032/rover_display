@@ -457,6 +457,25 @@ def next_table():
             )
 
 
+# Back to main page
+@app.route("/return-home", methods=["POST"])
+def return_home():
+    data = request.get_json()
+    order_id = data.get("order_id")
+    # Last resort fallback
+    print(order_id)
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "order_id": order_id,
+                "timestamp": time.time(),
+            }
+        ),
+        500,
+    )
+
+
 # Route to trigger system reboot
 @app.route("/reboot", methods=["POST"])
 def reboot():
@@ -546,7 +565,7 @@ if __name__ == "__main__":
 
     try:
         print("Starting Flask application...")
-        socketio.run(app, debug=False, use_reloader=False)
+        socketio.run(app, debug=True, use_reloader=True)
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt received...")
         # Let the signal handler do its job
