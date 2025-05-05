@@ -526,7 +526,6 @@ signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 # ---------- RUN THE APP ----------
 
 if __name__ == "__main__":
-    app.run(debug=True)
     # Start background threads and keep track of them
     stats_thread = threading.Thread(
         target=background_task, daemon=True, name="stats_thread"
