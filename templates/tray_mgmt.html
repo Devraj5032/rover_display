@@ -201,6 +201,22 @@
             color: var(--success-color);
         }
         
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -257,8 +273,10 @@
         // Track which tray was last processed
         let lastProcessedTray = null;
         
-        // API endpoint for "Return to Chef"
-        const RETURN_TO_CHEF_API = "http://localhost:5000/return-to-chef";
+        // API endpoints
+        const API_BASE_URL = "http://localhost:5000";
+        const RETURN_TO_CHEF_API = `${API_BASE_URL}/return-to-chef`;
+        const NEXT_TABLE_API = `${API_BASE_URL}/next-table`;
         
         // Function to parse URL parameters
         function getUrlParams() {
@@ -287,7 +305,7 @@
         async function callReturnToChefAPI() {
             try {
                 const notification = document.getElementById('notification');
-                notification.textContent = "Calling Return to Chef API...";
+                notification.innerHTML = '<div class="loading-spinner"></div> Calling Return to Chef API...';
                 notification.classList.add('show');
                 
                 // Call the API
@@ -302,35 +320,69 @@
                     })
                 });
                 
-                if (response.ok) {
-                    notification.textContent = "Successfully returned to chef!";
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    notification.innerHTML = '✅ Successfully returned to chef!';
                     
                     // Redirect after successful API call
                     setTimeout(() => {
-                        window.location.href = "http://localhost:5000/";
+                        window.location.href = API_BASE_URL;
                     }, 1500);
                 } else {
-                    notification.textContent = "Error calling API. Redirecting anyway...";
+                    console.error("API error:", data);
+                    notification.innerHTML = '⚠️ Error calling API. Redirecting anyway...';
                     
                     // Redirect even if API fails
                     setTimeout(() => {
-                        window.location.href = "http://localhost:5000/";
+                        window.location.href = API_BASE_URL;
                     }, 1500);
                 }
             } catch (error) {
                 console.error("Error calling Return to Chef API:", error);
                 const notification = document.getElementById('notification');
-                notification.textContent = "Error calling API. Redirecting anyway...";
+                notification.innerHTML = '❌ Error calling API. Redirecting anyway...';
                 
                 // Redirect even if API fails
                 setTimeout(() => {
-                    window.location.href = "http://localhost:5000/";
+                    window.location.href = API_BASE_URL;
                 }, 1500);
             }
         }
         
+        // Function to call the "Next Table" API
+        async function callNextTableAPI(currentTable) {
+            try {
+                // Call the API
+                const response = await fetch(NEXT_TABLE_API, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        table_number: currentTable
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && (data.status === 'success' || data.status === 'partial_success')) {
+                    console.log(`Next table API success: Table ${currentTable} → Table ${data.table_number}`);
+                    return data.table_number;
+                } else {
+                    console.warn("Next table API warning:", data);
+                    // Return the fallback table number from the API response
+                    return data.table_number || (parseInt(currentTable) + 1);
+                }
+            } catch (error) {
+                console.error("Error calling Next Table API:", error);
+                // Fallback: increment the current table number
+                return parseInt(currentTable) + 1;
+            }
+        }
+        
         // Function to handle "Next" button clicks with visual feedback
-        function nextTable(trayNumber, isLastTray = false) {
+        async function nextTable(trayNumber, isLastTray = false) {
             const tray = document.getElementById(`tray${trayNumber}`);
             const button = tray.querySelector('.next-btn');
             const notification = document.getElementById('notification');
@@ -341,17 +393,20 @@
             // Add processing class to turn the tray green
             tray.classList.add('processing');
             
-            // Show success notification
-            const tableNumber = document.getElementById(`table${trayNumber}`).textContent.split(' ')[1];
-            notification.textContent = `Order for Table ${tableNumber} processed successfully!`;
+            // Get current table number
+            const tableElement = document.getElementById(`table${trayNumber}`);
+            const currentTable = tableElement.textContent.split(' ')[1];
+            
+            // Show processing notification
+            notification.innerHTML = `<div class="loading-spinner"></div> Processing order for Table ${currentTable}...`;
             notification.classList.add('show');
             
             // Store the last processed tray
             lastProcessedTray = trayNumber;
             
-            // If this is the last tray (tray 3), call the API and redirect
+            // If this is the last tray (tray 3), call the Return to Chef API and redirect
             if (isLastTray) {
-                notification.textContent = `Order for Table ${tableNumber} processed successfully! Returning to chef...`;
+                notification.innerHTML = `<div class="loading-spinner"></div> Order for Table ${currentTable} processed successfully! Returning to chef...`;
                 
                 // Call the Return to Chef API
                 setTimeout(() => {
@@ -361,29 +416,47 @@
                 return;
             }
             
-            // Hide notification and reset after 2 seconds
-            setTimeout(() => {
-                notification.classList.remove('show');
+            // Call the Next Table API to get a new table number
+            try {
+                const newTable = await callNextTableAPI(currentTable);
                 
-                // Re-enable button
-                button.disabled = false;
+                // Show success notification
+                notification.innerHTML = `✅ Order for Table ${currentTable} processed successfully!`;
                 
-                // Update table number (simulating getting a new order)
-                const currentTable = parseInt(tableNumber);
-                const newTable = currentTable + Math.floor(Math.random() * 10) + 1;
-                document.getElementById(`table${trayNumber}`).textContent = `Table ${newTable}`;
-                
-                // Remove the processing class after a delay to return to purple
+                // Hide notification and reset after 2 seconds
                 setTimeout(() => {
+                    notification.classList.remove('show');
+                    
+                    // Re-enable button
+                    button.disabled = false;
+                    
+                    // Update table number with the one from the API
+                    tableElement.textContent = `Table ${newTable}`;
+                    
+                    // Remove the processing class after a delay to return to purple
+                    setTimeout(() => {
+                        tray.classList.remove('processing');
+                    }, 500);
+                }, 2000);
+            } catch (error) {
+                console.error("Error in nextTable function:", error);
+                
+                // Show error notification
+                notification.innerHTML = `⚠️ Error processing order. Please try again.`;
+                
+                // Hide notification and reset after 2 seconds
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    button.disabled = false;
                     tray.classList.remove('processing');
-                }, 500);
-            }, 2000);
+                }, 2000);
+            }
         }
         
         // Function to handle "Return to chef" button
         function returnToChef() {
             const notification = document.getElementById('notification');
-            notification.textContent = "Returning to chef view...";
+            notification.innerHTML = '<div class="loading-spinner"></div> Returning to chef view...';
             notification.classList.add('show');
             
             // Call the Return to Chef API
