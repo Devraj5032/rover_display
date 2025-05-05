@@ -41,10 +41,12 @@ ws_server = None
 
 # ---------- DATABASE INITIALIZATION ----------
 
+
 def init_db():
-    with sqlite3.connect('tray_orders.db') as conn:
+    with sqlite3.connect("tray_orders.db") as conn:
         c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS tray_orders (
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS tray_orders (
             id TEXT PRIMARY KEY,
             timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')),
             tray1_table_id INTEGER,
@@ -55,8 +57,10 @@ def init_db():
             tray3_reached BOOLEAN DEFAULT 0,
             success BOOLEAN DEFAULT 0,
             chef_table INTEGER DEFAULT 0
-        )''')
+        )"""
+        )
         conn.commit()
+
 
 init_db()
 
@@ -64,11 +68,13 @@ init_db()
 
 clients = []
 
+
 def new_client(client, server):
     print(f"New client connected: {client['id']}")
     global active
     clients.append(client)
     active += 1
+
 
 def client_left(client, server):
     print(f"Client {client['id']} disconnected")
@@ -77,6 +83,7 @@ def client_left(client, server):
         clients.remove(client)
         active -= 1
 
+
 def message_received(client, server, message):
     try:
         data = json.loads(message)
@@ -84,33 +91,39 @@ def message_received(client, server, message):
             # Respond to ping with pong
             server.send_message(client, json.dumps({"type": "pong"}))
             return
-            
+
         if data.get("type") == "waypoint_result" and data.get("order"):
             print(f"Received sequence for order {data['order']}: {data['sequence']}")
-            with sqlite3.connect('tray_orders.db') as conn:
+            with sqlite3.connect("tray_orders.db") as conn:
                 c = conn.cursor()
-                c.execute('SELECT tray1_table_id, tray2_table_id, tray3_table_id FROM tray_orders WHERE id = ?', (data['order'],))
+                c.execute(
+                    "SELECT tray1_table_id, tray2_table_id, tray3_table_id FROM tray_orders WHERE id = ?",
+                    (data["order"],),
+                )
                 row = c.fetchone()
                 if row:
-                    tray1_reached = 0 if row[0] in data['sequence'] else 1
-                    tray2_reached = 0 if row[1] in data['sequence'] else 1
-                    tray3_reached = 0 if row[2] in data['sequence'] else 1
-                    c.execute('''UPDATE tray_orders 
+                    tray1_reached = 0 if row[0] in data["sequence"] else 1
+                    tray2_reached = 0 if row[1] in data["sequence"] else 1
+                    tray3_reached = 0 if row[2] in data["sequence"] else 1
+                    c.execute(
+                        """UPDATE tray_orders 
                                  SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ? 
-                                 WHERE id = ?''', 
-                              (tray1_reached, tray2_reached, tray3_reached, data['order']))
+                                 WHERE id = ?""",
+                        (tray1_reached, tray2_reached, tray3_reached, data["order"]),
+                    )
                     conn.commit()
         else:
             print("Unrecognized message type")
     except Exception as e:
         print(f"Error handling message: {e}")
 
+
 def start_websocket_server():
     global ws_server
     port = 48236
     for attempt in range(10):
         try:
-            ws_server = WebsocketServer(host='0.0.0.0', port=port)
+            ws_server = WebsocketServer(host="0.0.0.0", port=port)
             ws_server.set_fn_new_client(new_client)
             ws_server.set_fn_client_left(client_left)
             ws_server.set_fn_message_received(message_received)
@@ -121,11 +134,11 @@ def start_websocket_server():
             print(f"Port {port} in use, retrying...")
             # port += 1
             time.sleep(1)
-    
+
     # Keep thread alive until shutdown is requested
     while not shutdown_event.is_set():
         time.sleep(1)
-    
+
     # Close WebSocket server when shutdown is requested
     if ws_server:
         try:
@@ -137,6 +150,7 @@ def start_websocket_server():
 
 # ---------- SYSTEM STATS LOGIC ----------
 
+
 def get_system_stats():
     # Gather system info
     cpu_overall_percent = psutil.cpu_percent(interval=1)
@@ -144,23 +158,25 @@ def get_system_stats():
     cpu_count_logical = psutil.cpu_count(logical=True)
     cpu_count_physical = psutil.cpu_count(logical=False)
     cpu_freq = psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {}
-    load_avg = os.getloadavg() if hasattr(os, 'getloadavg') else [None, None, None]
+    load_avg = os.getloadavg() if hasattr(os, "getloadavg") else [None, None, None]
     memory = psutil.virtual_memory()._asdict()
 
     # Gather top 10 processes by CPU usage
     processes = []
-    for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent', 'cmdline']):
+    for proc in psutil.process_iter(
+        attrs=["pid", "name", "cpu_percent", "memory_percent", "cmdline"]
+    ):
         try:
             processes.append(proc.info)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
     # Sort processes by CPU usage, descending and get top 10
-    top_processes = sorted(processes, key=lambda p: p['cpu_percent'], reverse=True)[:10]
+    top_processes = sorted(processes, key=lambda p: p["cpu_percent"], reverse=True)[:10]
 
     # Format command line nicely
     for p in top_processes:
-        p['cmdline'] = ' '.join(p['cmdline']) if p['cmdline'] else ''
+        p["cmdline"] = " ".join(p["cmdline"]) if p["cmdline"] else ""
 
     return {
         "active": active,
@@ -171,30 +187,36 @@ def get_system_stats():
         "cpu_freq": cpu_freq,
         "load_avg": load_avg,
         "memory": memory,
-        "top_processes": top_processes
+        "top_processes": top_processes,
     }
+
 
 # ---------- ROUTES ----------
 
+
 # Route to display index.html
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
+
 
 # Route to display tray management page
-@app.route('/tray_mgmt')
+@app.route("/tray_mgmt")
 def tray_mgmt():
-    return render_template('tray_mgmt.html')
+    return render_template("tray_mgmt.html")
+
 
 # Route to display stats page
-@app.route('/stats-page')
+@app.route("/stats-page")
 def stats_page():
-    return render_template('stats.html')
+    return render_template("stats.html")
+
 
 # Keep the REST endpoint for backward compatibility
 @app.route("/stats")
 def stats():
     return jsonify(get_system_stats())
+
 
 # Health check logging route (commented out as in original)
 # @app.route('/logHealthCheckRPI', methods=['POST'])
@@ -230,7 +252,7 @@ def stats():
 #
 #         insert_query = """
 #             INSERT INTO loghealthcheckrpi (
-#                 rover_id, rpi_id, device_id, check_status, check_value, 
+#                 rover_id, rpi_id, device_id, check_status, check_value,
 #                 date_time, location_x, location_y, location_z, remarks
 #             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 #         """
@@ -250,61 +272,63 @@ def stats():
 #         traceback.print_exc()  # Logs full stack trace
 #         return jsonify({"message": "Server error", "error": str(e)}), 500
 
+
 # Tray management route
-@app.route('/get-table-array', methods=['POST'])
+@app.route("/get-table-array", methods=["POST"])
 def get_table_array():
     data = request.get_json()
-    trays = data.get('trays', {})
+    trays = data.get("trays", {})
     print(data)
     tray_array = [f"T{value}" for value in trays.values()]
     order_id = shortuuid.uuid()
 
     try:
-        with sqlite3.connect('tray_orders.db') as conn:
+        with sqlite3.connect("tray_orders.db") as conn:
             c = conn.cursor()
-            c.execute('''INSERT INTO tray_orders 
+            c.execute(
+                """INSERT INTO tray_orders 
                          (id, tray1_table_id, tray2_table_id, tray3_table_id) 
-                         VALUES (?, ?, ?, ?)''',
-                      (order_id, trays.get('1'), trays.get('2'), trays.get('3')))
+                         VALUES (?, ?, ?, ?)""",
+                (order_id, trays.get("1"), trays.get("2"), trays.get("3")),
+            )
             conn.commit()
     except Exception as e:
         print(f"Error inserting into database: {e}")
 
     # Notify all WebSocket clients
     if ws_server and clients:
-        ws_message = json.dumps({
-            "order": order_id,
-            "tray": tray_array
-        })
+        ws_message = json.dumps({"order": order_id, "tray": tray_array})
         for client in clients:
             ws_server.send_message(client, ws_message)
         print(f"Sent tray order to {len(clients)} WebSocket clients.")
 
-    return jsonify(tray_array)
+    return jsonify({"tray_array": tray_array, "order_id": order_id})
 
 
-@app.route('/return-to-chef', methods=['POST'])
+@app.route("/return-to-chef", methods=["POST"])
 def return_to_chef():
     try:
         data = request.get_json()
         print("Return to Chef API called:", data)
-        
+
         # Log the action in the database
         try:
-            with sqlite3.connect('tray_orders.db') as conn:
+            with sqlite3.connect("tray_orders.db") as conn:
                 c = conn.cursor()
                 # Update the most recent active order to mark it as returned to chef
-                c.execute('''UPDATE tray_orders 
+                c.execute(
+                    """UPDATE tray_orders 
                              SET success = 1, 
                                  chef_table = 1
                              WHERE id = (
                                  SELECT id FROM tray_orders 
                                  ORDER BY timestamp DESC 
                                  LIMIT 1
-                             )''')
+                             )"""
+                )
                 rows_affected = c.rowcount
                 conn.commit()
-                
+
                 if rows_affected > 0:
                     print(f"Updated order status: returned to chef")
                 else:
@@ -312,129 +336,126 @@ def return_to_chef():
         except Exception as e:
             print(f"Database error in return_to_chef: {e}")
             traceback.print_exc()
-        
+
         # Notify WebSocket clients if applicable
         if ws_server and clients:
-            ws_message = json.dumps({
-                "type": "chef_return",
-                "timestamp": time.time(),
-                "status": "success"
-            })
+            ws_message = json.dumps(
+                {"type": "chef_return", "timestamp": time.time(), "status": "success"}
+            )
             for client in clients:
                 ws_server.send_message(client, ws_message)
             print(f"Sent chef return notification to {len(clients)} WebSocket clients")
-        
-        return jsonify({
-            "status": "success",
-            "message": "Successfully returned to chef",
-            "timestamp": time.time()
-        }), 200
-        
+
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Successfully returned to chef",
+                    "timestamp": time.time(),
+                }
+            ),
+            200,
+        )
+
     except Exception as e:
         print(f"Error in return_to_chef API: {e}")
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": f"Server error: {str(e)}",
-            "timestamp": time.time()
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": f"Server error: {str(e)}",
+                    "timestamp": time.time(),
+                }
+            ),
+            500,
+        )
 
 
-@app.route('/next-table', methods=['POST'])
+@app.route("/next-table", methods=["POST"])
 def next_table():
     try:
         data = request.get_json()
-        current_table = data.get('table_number')
-        
-        
-        print(f"Next Table API called for table {current_table}")
-        
+        current_table = data.get("table_number")
+        order_id = data.get("order_id")
+
+        print(f"Next Table API called for table {current_table}, order ID {order_id}")
+
         try:
-            # Convert to integer if it's a string
-            if isinstance(current_table, str):
-                current_table = int(current_table)
-                
-            # Generate a new table number
-            # Option 1: Simple increment with wraparound
-            # next_table_number = (current_table % 20) + 1
-            
-            # Option 2: Random selection from available tables
-            
-            # Log the table assignment in the database
-            # with sqlite3.connect('tray_orders.db') as conn:
-            #     c = conn.cursor()
-                
-            #     # Mark the current table as no longer occupied
-            #     c.execute('''INSERT OR REPLACE INTO table_assignments 
-            #                  (table_number, is_occupied, last_updated) 
-            #                  VALUES (?, 0, DATETIME('now', 'localtime'))''', 
-            #               (current_table,))
-                
-            #     # Mark the new table as occupied
-            #     c.execute('''INSERT OR REPLACE INTO table_assignments 
-            #                  (table_number, is_occupied, last_updated) 
-            #                  VALUES (?, 1, DATETIME('now', 'localtime'))''', 
-            #               (next_table_number,))
-                
-            #     conn.commit()
-                
+
+            # [Optional] Update database with order_id info
+            # ...
+
             # Notify WebSocket clients if applicable
             if ws_server and clients:
-                ws_message = json.dumps({
-                    "type": "table_assignment",
-                    "previous_table": current_table,
-                    "timestamp": time.time()
-                })
+                ws_message = json.dumps(
+                    {
+                        "type": "table_assignment",
+                        "previous_table": current_table,
+                        "order_id": order_id,
+                        "timestamp": time.time(),
+                    }
+                )
                 for client in clients:
                     ws_server.send_message(client, ws_message)
-                print(f"Sent table assignment notification to {len(clients)} WebSocket clients")
-            
-            return jsonify({
-                "status": "success",
-                "previous_table": current_table,
-                "timestamp": time.time()
-            }), 200
-            
+                print(
+                    f"Sent table assignment notification to {len(clients)} WebSocket clients"
+                )
+
+            return (
+                jsonify(
+                    {
+                        "status": "success",
+                        "previous_table": current_table,
+                        "order_id": order_id,
+                        "timestamp": time.time(),
+                    }
+                ),
+                200,
+            )
+
         except Exception as e:
-            print(f"Database error in next_table: {e}")
-            traceback.print_exc()
-            
-            # Even if there's a database error, still return a table number
-            fallback_table = (int(current_table) % 20) + 1
-            
-            return jsonify({
-                "status": "partial_success",
-                "message": "Generated new table but failed to log in database",
-                "previous_table": current_table,
-                "table_number": fallback_table,
-                "timestamp": time.time()
-            }), 200
-            
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
+
     except Exception as e:
         print(f"Error in next_table API: {e}")
         traceback.print_exc()
-        
+
         # Return a fallback table number even in case of error
         try:
             if current_table:
                 fallback_table = (int(current_table) % 20) + 1
             else:
                 fallback_table = random.randint(1, 20)
-                
-            return jsonify({
-                "status": "error",
-                "message": f"Server error: {str(e)}",
-                "table_number": fallback_table,
-                "timestamp": time.time()
-            }), 500
+
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Server error: {str(e)}",
+                        "table_number": fallback_table,
+                        "timestamp": time.time(),
+                    }
+                ),
+                500,
+            )
         except:
             # Last resort fallback
-            return jsonify({
-                "status": "error",
-                "message": "Critical server error",
-                "table_number": 1,
-                "timestamp": time.time()
-            }), 500
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Critical server error",
+                        "table_number": 1,
+                        "timestamp": time.time(),
+                    }
+                ),
+                500,
+            )
+
 
 # Route to trigger system reboot
 @app.route("/reboot", methods=["POST"])
@@ -446,26 +467,31 @@ def reboot():
         os.system("sudo /usr/sbin/reboot")
     return jsonify({"message": "Rebooting..."})
 
+
 # ---------- SOCKET.IO EVENTS ----------
 
-@socketio.on('connect')
+
+@socketio.on("connect")
 def handle_connect():
-    print('Client connected')
+    print("Client connected")
 
-@socketio.on('disconnect')
+
+@socketio.on("disconnect")
 def handle_disconnect():
-    print('Client disconnected')
+    print("Client disconnected")
 
-@socketio.on('request_stats')
+
+@socketio.on("request_stats")
 def handle_request_stats():
-    emit('stats_update', get_system_stats())
+    emit("stats_update", get_system_stats())
+
 
 # Background task to emit system stats every second
 def background_task():
     print("Starting background stats task...")
     while not shutdown_event.is_set():
         try:
-            socketio.emit('stats_update', get_system_stats())
+            socketio.emit("stats_update", get_system_stats())
             # Use a timeout so we can check the shutdown flag regularly
             shutdown_event.wait(1)
         except Exception as e:
@@ -473,44 +499,52 @@ def background_task():
             if not shutdown_event.is_set():
                 time.sleep(5)  # Wait before retry if it's not a shutdown
 
+
 # ---------- SIGNAL HANDLERS ----------
+
 
 def signal_handler(sig, frame):
     print("\nShutting down gracefully...")
-    
+
     # Set shutdown event for background threads
     shutdown_event.set()
-    
+
     # Wait for background threads to finish
     for thread in background_threads:
         if thread.is_alive():
             print(f"Waiting for thread {thread.name} to finish...")
             thread.join(timeout=5)
-    
+
     print("Shutdown complete.")
     sys.exit(0)
 
+
 # Register the signal handlers
-signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
 signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 
 # ---------- RUN THE APP ----------
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    app.run(debug=True)
     # Start background threads and keep track of them
-    stats_thread = threading.Thread(target=background_task, daemon=True, name="stats_thread")
+    stats_thread = threading.Thread(
+        target=background_task, daemon=True, name="stats_thread"
+    )
     stats_thread.start()
     background_threads.append(stats_thread)
-    
-    ws_thread = threading.Thread(target=start_websocket_server, daemon=True, name="websocket_thread")
+
+    ws_thread = threading.Thread(
+        target=start_websocket_server, daemon=True, name="websocket_thread"
+    )
     ws_thread.start()
     background_threads.append(ws_thread)
-    
+
     # Add heartbeat thread
     # heartbeat_thread = threading.Thread(target=send_heartbeat, daemon=True, name="heartbeat_thread")
     # heartbeat_thread.start()
     # background_threads.append(heartbeat_thread)
-    
+
     try:
         print("Starting Flask application...")
         socketio.run(app, debug=False, use_reloader=False)
