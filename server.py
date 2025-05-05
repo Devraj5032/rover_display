@@ -346,12 +346,6 @@ def next_table():
         data = request.get_json()
         current_table = data.get('table_number')
         
-        if current_table is None:
-            return jsonify({
-                "status": "error",
-                "message": "Missing table_number parameter",
-                "timestamp": time.time()
-            }), 400
         
         print(f"Next Table API called for table {current_table}")
         
@@ -365,36 +359,30 @@ def next_table():
             # next_table_number = (current_table % 20) + 1
             
             # Option 2: Random selection from available tables
-            available_tables = list(range(1, 21))  # Tables 1-20
-            if current_table in available_tables:
-                available_tables.remove(current_table)  # Don't reuse the current table
-            
-            next_table_number = random.choice(available_tables)
             
             # Log the table assignment in the database
-            with sqlite3.connect('tray_orders.db') as conn:
-                c = conn.cursor()
+            # with sqlite3.connect('tray_orders.db') as conn:
+            #     c = conn.cursor()
                 
-                # Mark the current table as no longer occupied
-                c.execute('''INSERT OR REPLACE INTO table_assignments 
-                             (table_number, is_occupied, last_updated) 
-                             VALUES (?, 0, DATETIME('now', 'localtime'))''', 
-                          (current_table,))
+            #     # Mark the current table as no longer occupied
+            #     c.execute('''INSERT OR REPLACE INTO table_assignments 
+            #                  (table_number, is_occupied, last_updated) 
+            #                  VALUES (?, 0, DATETIME('now', 'localtime'))''', 
+            #               (current_table,))
                 
-                # Mark the new table as occupied
-                c.execute('''INSERT OR REPLACE INTO table_assignments 
-                             (table_number, is_occupied, last_updated) 
-                             VALUES (?, 1, DATETIME('now', 'localtime'))''', 
-                          (next_table_number,))
+            #     # Mark the new table as occupied
+            #     c.execute('''INSERT OR REPLACE INTO table_assignments 
+            #                  (table_number, is_occupied, last_updated) 
+            #                  VALUES (?, 1, DATETIME('now', 'localtime'))''', 
+            #               (next_table_number,))
                 
-                conn.commit()
+            #     conn.commit()
                 
             # Notify WebSocket clients if applicable
             if ws_server and clients:
                 ws_message = json.dumps({
                     "type": "table_assignment",
                     "previous_table": current_table,
-                    "new_table": next_table_number,
                     "timestamp": time.time()
                 })
                 for client in clients:
@@ -404,7 +392,6 @@ def next_table():
             return jsonify({
                 "status": "success",
                 "previous_table": current_table,
-                "table_number": next_table_number,
                 "timestamp": time.time()
             }), 200
             
