@@ -85,7 +85,7 @@ def message_received(client, server, message):
             server.send_message(client, json.dumps({"type": "pong"}))
             return
             
-        if data.get("type") == "waypoint_result" and data.get("sequence"):
+        if data.get("type") == "waypoint_result" and data.get("order"):
             print(f"Received sequence for order {data['order']}: {data['sequence']}")
             with sqlite3.connect('tray_orders.db') as conn:
                 c = conn.cursor()
