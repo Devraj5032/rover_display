@@ -204,6 +204,17 @@
         color: var(--success-color);
       }
 
+      .no-trays-message {
+        text-align: center;
+        padding: 30px;
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+        font-size: 18px;
+        color: var(--dark-color);
+        grid-column: 1 / -1;
+      }
+
       @media (max-width: 768px) {
         .header {
           flex-direction: column;
@@ -239,27 +250,8 @@
         </div>
       </div>
 
-      <div class="trays-container">
-        <div class="tray" id="tray1">
-          <div class="tray-icon">🍽️</div>
-          <h2 class="tray-title">Tray 1</h2>
-          <div class="table-info" id="table1">Table 2</div>
-          <button class="next-btn" onclick="nextTable(1)">Next</button>
-        </div>
-
-        <div class="tray" id="tray2">
-          <div class="tray-icon">🍽️</div>
-          <h2 class="tray-title">Tray 2</h2>
-          <div class="table-info" id="table2">Table 6</div>
-          <button class="next-btn" onclick="nextTable(2)">Next</button>
-        </div>
-
-        <div class="tray" id="tray3">
-          <div class="tray-icon">🍽️</div>
-          <h2 class="tray-title">Tray 3</h2>
-          <div class="table-info" id="table3">Table 4</div>
-          <button class="next-btn" onclick="nextTable(3, true)">Next</button>
-        </div>
+      <div class="trays-container" id="traysContainer">
+        <!-- Trays will be dynamically generated here -->
       </div>
     </div>
 
@@ -281,7 +273,7 @@
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
 
-        // Get table numbers from URL parameters or use defaults
+        // Get table numbers from URL parameters
         params.table1 = urlParams.get("table1");
         params.table2 = urlParams.get("table2");
         params.table3 = urlParams.get("table3");
@@ -290,19 +282,64 @@
         return params;
       }
 
-      // Initialize tables with URL parameters
+      // Function to create a tray element
+      function createTrayElement(trayNumber, tableNumber, isLastTray = false) {
+        const trayDiv = document.createElement("div");
+        trayDiv.className = "tray";
+        trayDiv.id = `tray${trayNumber}`;
+
+        trayDiv.innerHTML = `
+          <div class="tray-icon">🍽️</div>
+          <h2 class="tray-title">Tray ${trayNumber}</h2>
+          <div class="table-info" id="table${trayNumber}">Table ${tableNumber}</div>
+          <button class="next-btn" onclick="nextTable(${trayNumber}, ${isLastTray})">Next</button>
+        `;
+
+        return trayDiv;
+      }
+
+      // Initialize trays with URL parameters
       function initTables() {
         const params = getUrlParams();
+        const traysContainer = document.getElementById("traysContainer");
 
-        document.getElementById(
-          "table1"
-        ).textContent = `Table ${params.table1}`;
-        document.getElementById(
-          "table2"
-        ).textContent = `Table ${params.table2}`;
-        document.getElementById(
-          "table3"
-        ).textContent = `Table ${params.table3}`;
+        // Clear any existing content
+        traysContainer.innerHTML = "";
+
+        let trayCount = 0;
+        const totalTrays = 3;
+
+        // Check each tray and only create it if it has a table assigned
+        for (let i = 1; i <= totalTrays; i++) {
+          const tableParam = params[`table${i}`];
+
+          // Only create tray if table parameter exists and is not null, undefined, or empty
+          if (tableParam) {
+            // Determine if this is the last tray with a table assigned
+            const isLastAssignedTray =
+              i === totalTrays ||
+              (!params[`table${i + 1}`] &&
+                !params[`table${i + 2}`] &&
+                !params[`table${i + 3}`]);
+
+            const trayElement = createTrayElement(
+              i,
+              tableParam,
+              isLastAssignedTray
+            );
+            traysContainer.appendChild(trayElement);
+            trayCount++;
+          }
+        }
+
+        // If no trays have tables assigned, show a message
+        if (trayCount === 0) {
+          const noTraysMessage = document.createElement("div");
+          noTraysMessage.className = "no-trays-message";
+          noTraysMessage.textContent =
+            "No trays are currently assigned to tables.";
+          traysContainer.appendChild(noTraysMessage);
+        }
       }
 
       // Function to call the "Return Home" API
@@ -375,14 +412,23 @@
 
           if (response.ok) {
             notification.textContent = "Successfully returned to chef!";
+            setTimeout(() => {
+              window.location.href = "http://localhost:5000/";
+            }, 1500); // wait 1 second to show message before redirect
           } else {
             notification.textContent =
               "Error calling API. Redirecting anyway...";
+            setTimeout(() => {
+              window.location.href = "http://localhost:5000/";
+            }, 1500);
           }
         } catch (error) {
           console.error("Error calling Return to Chef API:", error);
           const notification = document.getElementById("notification");
           notification.textContent = "Error calling API. Redirecting anyway...";
+          setTimeout(() => {
+            window.location.href = "http://localhost:5000/";
+          }, 1500);
         }
       }
 
