@@ -297,7 +297,7 @@ def get_table_array():
 
     # Notify all WebSocket clients
     if ws_server and clients:
-        ws_message = json.dumps({"order": order_id, "tray": tray_array})
+        ws_message = json.dumps({"order": order_id, "tray": tray_array, "type": "waypoint_order"})
         for client in clients:
             ws_server.send_message(client, ws_message)
         print(f"Sent tray order to {len(clients)} WebSocket clients.")
