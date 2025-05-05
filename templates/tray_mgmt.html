@@ -1,470 +1,416 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tray Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        :root {
-            --primary-color: #6a1b9a;
-            --secondary-color: #8e24aa;
-            --accent-color: #ab47bc;
-            --success-color: #2e7d32;
-            --light-purple: #f3e5f5;
-            --dark-color: #212529;
-            --border-radius: 12px;
-            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-        }
+      :root {
+        --primary-color: #6a1b9a;
+        --secondary-color: #8e24aa;
+        --accent-color: #ab47bc;
+        --success-color: #2e7d32;
+        --light-purple: #f3e5f5;
+        --dark-color: #212529;
+        --border-radius: 12px;
+        --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+      }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            background-color: #f8f9fa;
-            color: var(--dark-color);
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background-color: #f8f9fa;
+        color: var(--dark-color);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        background-color: white;
+        box-shadow: var(--box-shadow);
+        border-radius: var(--border-radius);
+        margin-bottom: 30px;
+      }
+
+      .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .logo {
+        height: 50px;
+        width: auto;
+      }
+
+      .app-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+
+      .trays-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 30px;
+        margin-top: 30px;
+      }
+
+      .tray {
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        transition: var(--transition);
+        border-top: 5px solid var(--primary-color);
+      }
+
+      .tray.processing {
+        border-top: 5px solid var(--success-color);
+        background-color: #e8f5e9;
+      }
+
+      .tray-title {
+        font-size: 22px;
+        color: var(--primary-color);
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
+
+      .tray.processing .tray-title {
+        color: var(--success-color);
+      }
+
+      .table-info {
+        font-size: 18px;
+        margin: 15px 0;
+        padding: 10px 25px;
+        background-color: var(--light-purple);
+        border-radius: 20px;
+        font-weight: 500;
+        transition: var(--transition);
+      }
+
+      .tray.processing .table-info {
+        background-color: #e8f5e9;
+        color: var(--success-color);
+        font-weight: 600;
+      }
+
+      .next-btn {
+        padding: 10px 30px;
+        background-color: var(--accent-color);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: var(--transition);
+        margin-top: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      .next-btn:hover {
+        background-color: var(--primary-color);
+        transform: translateY(-2px);
+      }
+
+      .next-btn:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .tray.processing .next-btn {
+        background-color: var(--success-color);
+      }
+
+      .return-btn {
+        padding: 10px 25px;
+        background-color: white;
+        border: 2px solid var(--primary-color);
+        border-radius: 25px;
+        color: var(--primary-color);
+        cursor: pointer;
+        font-weight: 600;
+        transition: var(--transition);
+        font-size: 16px;
+      }
+
+      .return-btn:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+      }
+
+      .notification {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--success-color);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 30px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 100;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        max-width: 90%;
+        text-align: center;
+      }
+
+      .notification.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-10px);
+      }
+
+      .tray-icon {
+        font-size: 30px;
+        margin-bottom: 10px;
+        color: var(--primary-color);
+        transition: var(--transition);
+      }
+
+      .tray.processing .tray-icon {
+        color: var(--success-color);
+      }
+
+      @media (max-width: 768px) {
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background-color: white;
-            box-shadow: var(--box-shadow);
-            border-radius: var(--border-radius);
-            margin-bottom: 30px;
-        }
-        
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .logo {
-            height: 50px;
-            width: auto;
-        }
-        
-        .app-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-        
-        .trays-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-            margin-top: 30px;
-        }
-        
-        .tray {
-            background-color: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--box-shadow);
-            padding: 25px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            transition: var(--transition);
-            border-top: 5px solid var(--primary-color);
-        }
-        
-        .tray.processing {
-            border-top: 5px solid var(--success-color);
-            background-color: #e8f5e9;
-        }
-        
-        .tray-title {
-            font-size: 22px;
-            color: var(--primary-color);
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-        
-        .tray.processing .tray-title {
-            color: var(--success-color);
-        }
-        
-        .table-info {
-            font-size: 18px;
-            margin: 15px 0;
-            padding: 10px 25px;
-            background-color: var(--light-purple);
-            border-radius: 20px;
-            font-weight: 500;
-            transition: var(--transition);
-        }
-        
-        .tray.processing .table-info {
-            background-color: #e8f5e9;
-            color: var(--success-color);
-            font-weight: 600;
-        }
-        
-        .next-btn {
-            padding: 10px 30px;
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-            transition: var(--transition);
-            margin-top: 15px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        
-        .next-btn:hover {
-            background-color: var(--primary-color);
-            transform: translateY(-2px);
-        }
-        
-        .next-btn:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .tray.processing .next-btn {
-            background-color: var(--success-color);
-        }
-        
-        .return-btn {
-            padding: 10px 25px;
-            background-color: white;
-            border: 2px solid var(--primary-color);
-            border-radius: 25px;
-            color: var(--primary-color);
-            cursor: pointer;
-            font-weight: 600;
-            transition: var(--transition);
-            font-size: 16px;
-        }
-        
-        .return-btn:hover {
-            background-color: var(--primary-color);
-            color: white;
-            transform: translateY(-2px);
-        }
-        
-        .notification {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: var(--success-color);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 30px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 100;
-            font-weight: 500;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            max-width: 90%;
-            text-align: center;
-        }
-        
-        .notification.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-10px);
+          flex-direction: column;
+          gap: 15px;
+          padding: 20px;
         }
 
-        .tray-icon {
-            font-size: 30px;
-            margin-bottom: 10px;
-            color: var(--primary-color);
-            transition: var(--transition);
+        .trays-container {
+          grid-template-columns: 1fr;
         }
-        
-        .tray.processing .tray-icon {
-            color: var(--success-color);
+
+        .tray {
+          margin-bottom: 40px;
         }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                padding: 20px;
-            }
-            
-            .trays-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .tray {
-                margin-bottom: 40px;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <div class="logo-container">
-                <img src="https://greenquest.com.sg/img/logo.png" alt="Restaurant Logo" class="logo">
-            </div>
-            <button class="return-btn" onclick="returnToChef()">Return to Chef</button>
+      <div class="header">
+        <div class="logo-container">
+          <img
+            src="https://greenquest.com.sg/img/logo.png"
+            alt="Restaurant Logo"
+            class="logo"
+          />
         </div>
-        
-        <div class="trays-container">
-            <div class="tray" id="tray1">
-                <div class="tray-icon">🍽️</div>
-                <h2 class="tray-title">Tray 1</h2>
-                <div class="table-info" id="table1">Table 2</div>
-                <button class="next-btn" onclick="nextTable(1)">Next</button>
-            </div>
-            
-            <div class="tray" id="tray2">
-                <div class="tray-icon">🍽️</div>
-                <h2 class="tray-title">Tray 2</h2>
-                <div class="table-info" id="table2">Table 6</div>
-                <button class="next-btn" onclick="nextTable(2)">Next</button>
-            </div>
-            
-            <div class="tray" id="tray3">
-                <div class="tray-icon">🍽️</div>
-                <h2 class="tray-title">Tray 3</h2>
-                <div class="table-info" id="table3">Table 4</div>
-                <button class="next-btn" onclick="nextTable(3, true)">Next</button>
-            </div>
+        <button class="return-btn" onclick="returnToChef()">
+          Return to Chef
+        </button>
+      </div>
+
+      <div class="trays-container">
+        <div class="tray" id="tray1">
+          <div class="tray-icon">🍽️</div>
+          <h2 class="tray-title">Tray 1</h2>
+          <div class="table-info" id="table1">Table 2</div>
+          <button class="next-btn" onclick="nextTable(1)">Next</button>
         </div>
+
+        <div class="tray" id="tray2">
+          <div class="tray-icon">🍽️</div>
+          <h2 class="tray-title">Tray 2</h2>
+          <div class="table-info" id="table2">Table 6</div>
+          <button class="next-btn" onclick="nextTable(2)">Next</button>
+        </div>
+
+        <div class="tray" id="tray3">
+          <div class="tray-icon">🍽️</div>
+          <h2 class="tray-title">Tray 3</h2>
+          <div class="table-info" id="table3">Table 4</div>
+          <button class="next-btn" onclick="nextTable(3, true)">Next</button>
+        </div>
+      </div>
     </div>
-    
-    <div class="notification" id="notification">Order processed successfully!</div>
+
+    <div class="notification" id="notification">
+      Order processed successfully!
+    </div>
 
     <script>
-        // Track which tray was last processed
-        let lastProcessedTray = null;
-        
-        // API endpoints
-        const API_BASE_URL = "http://localhost:5000";
-        const RETURN_TO_CHEF_API = `${API_BASE_URL}/return-to-chef`;
-        const NEXT_TABLE_API = `${API_BASE_URL}/next-table`;
-        
-        // Function to parse URL parameters
-        function getUrlParams() {
-            const params = {};
-            const queryString = window.location.search;
-            const urlParams = new URLSearchParams(queryString);
-            
-            // Get table numbers from URL parameters or use defaults
-            params.table1 = urlParams.get('table1') || 2;
-            params.table2 = urlParams.get('table2') || 6;
-            params.table3 = urlParams.get('table3') || 4;
-            
-            return params;
+      // Track which tray was last processed
+      let lastProcessedTray = null;
+
+      // API endpoint for "Return to Chef"
+      const RETURN_TO_CHEF_API = "http://localhost:5000/return-to-chef";
+
+      // Function to parse URL parameters
+      function getUrlParams() {
+        const params = {};
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+        // Get table numbers from URL parameters or use defaults
+        params.table1 = urlParams.get("table1");
+        params.table2 = urlParams.get("table2");
+        params.table3 = urlParams.get("table3");
+        params.order_id = urlParams.get("order_id");
+
+        return params;
+      }
+
+      // Initialize tables with URL parameters
+      function initTables() {
+        const params = getUrlParams();
+
+        document.getElementById(
+          "table1"
+        ).textContent = `Table ${params.table1}`;
+        document.getElementById(
+          "table2"
+        ).textContent = `Table ${params.table2}`;
+        document.getElementById(
+          "table3"
+        ).textContent = `Table ${params.table3}`;
+      }
+
+      // Function to call the "Return to Chef" API
+      async function callReturnToChefAPI() {
+        try {
+          const notification = document.getElementById("notification");
+          notification.textContent = "Calling Return to Chef API...";
+          notification.classList.add("show");
+
+          // Call the API
+          const response = await fetch(RETURN_TO_CHEF_API, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "return_to_chef",
+              timestamp: new Date().toISOString(),
+            }),
+          });
+
+          if (response.ok) {
+            notification.textContent = "Successfully returned to chef!";
+
+            // Redirect after successful API call
+            setTimeout(() => {
+              window.location.href = "http://localhost:5000/";
+            }, 1500);
+          } else {
+            notification.textContent =
+              "Error calling API. Redirecting anyway...";
+
+            // Redirect even if API fails
+            setTimeout(() => {
+              window.location.href = "http://localhost:5000/";
+            }, 1500);
+          }
+        } catch (error) {
+          console.error("Error calling Return to Chef API:", error);
+          const notification = document.getElementById("notification");
+          notification.textContent = "Error calling API. Redirecting anyway...";
+
+          // Redirect even if API fails
+          setTimeout(() => {
+            window.location.href = "http://localhost:5000/";
+          }, 1500);
         }
-        
-        // Initialize tables with URL parameters
-        function initTables() {
-            const params = getUrlParams();
-            
-            document.getElementById('table1').textContent = `Table ${params.table1}`;
-            document.getElementById('table2').textContent = `Table ${params.table2}`;
-            document.getElementById('table3').textContent = `Table ${params.table3}`;
+      }
+
+      async function nextTable(trayNumber, isLastTray = false) {
+        const tray = document.getElementById(`tray${trayNumber}`);
+        const button = tray.querySelector(".next-btn");
+        const notification = document.getElementById("notification");
+        const tableElement = document.getElementById(`table${trayNumber}`);
+        const tableNumber = parseInt(tableElement.textContent.split(" ")[1]);
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+        const orderId = urlParams.get("order_id");
+
+        // Disable button and add processing class
+        button.disabled = true;
+        tray.classList.add("processing");
+
+        // Show success notification
+        notification.textContent = `Order for Table ${tableNumber} processed successfully!`;
+        notification.classList.add("show");
+
+        // Store last tray processed
+        lastProcessedTray = trayNumber;
+
+        // Call API
+        try {
+          const response = await fetch("/next-table", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ table_number: tableNumber, order_id: orderId }),
+          });
+
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result?.message || "API error");
+          }
+
+          console.log("API call successful:", result);
+        } catch (error) {
+          console.error("API call failed:", error);
         }
-        
-        // Function to call the "Return to Chef" API
-        async function callReturnToChefAPI() {
-            try {
-                const notification = document.getElementById('notification');
-                notification.innerHTML = '<div class="loading-spinner"></div> Calling Return to Chef API...';
-                notification.classList.add('show');
-                
-                // Call the API
-                const response = await fetch(RETURN_TO_CHEF_API, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'return_to_chef',
-                        timestamp: new Date().toISOString()
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.status === 'success') {
-                    notification.innerHTML = '✅ Successfully returned to chef!';
-                    
-                    // Redirect after successful API call
-                    setTimeout(() => {
-                        window.location.href = API_BASE_URL;
-                    }, 1500);
-                } else {
-                    console.error("API error:", data);
-                    notification.innerHTML = '⚠️ Error calling API. Redirecting anyway...';
-                    
-                    // Redirect even if API fails
-                    setTimeout(() => {
-                        window.location.href = API_BASE_URL;
-                    }, 1500);
-                }
-            } catch (error) {
-                console.error("Error calling Return to Chef API:", error);
-                const notification = document.getElementById('notification');
-                notification.innerHTML = '❌ Error calling API. Redirecting anyway...';
-                
-                // Redirect even if API fails
-                setTimeout(() => {
-                    window.location.href = API_BASE_URL;
-                }, 1500);
-            }
+
+        // If last tray, call return to chef
+        if (isLastTray) {
+          notification.textContent = `Order for Table ${tableNumber} processed successfully! Returning to chef...`;
+          setTimeout(() => {
+            callReturnToChefAPI(); // Ensure this function exists
+          }, 1000);
         }
-        
-        // Function to call the "Next Table" API
-        async function callNextTableAPI(currentTable) {
-            try {
-                // Call the API
-                const response = await fetch(NEXT_TABLE_API, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        table_number: currentTable
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && (data.status === 'success' || data.status === 'partial_success')) {
-                    console.log(`Next table API success: Table ${currentTable} → Table ${data.table_number}`);
-                    return data.table_number;
-                } else {
-                    console.warn("Next table API warning:", data);
-                    // Return the fallback table number from the API response
-                    return data.table_number || (parseInt(currentTable) + 1);
-                }
-            } catch (error) {
-                console.error("Error calling Next Table API:", error);
-                // Fallback: increment the current table number
-                return parseInt(currentTable) + 1;
-            }
-        }
-        
-        // Function to handle "Next" button clicks with visual feedback
-        async function nextTable(trayNumber, isLastTray = false) {
-            const tray = document.getElementById(`tray${trayNumber}`);
-            const button = tray.querySelector('.next-btn');
-            const notification = document.getElementById('notification');
-            
-            // Disable button during processing
-            button.disabled = true;
-            
-            // Add processing class to turn the tray green
-            tray.classList.add('processing');
-            
-            // Get current table number
-            const tableElement = document.getElementById(`table${trayNumber}`);
-            const currentTable = tableElement.textContent.split(' ')[1];
-            
-            // Show processing notification
-            notification.innerHTML = `<div class="loading-spinner"></div> Processing order for Table ${currentTable}...`;
-            notification.classList.add('show');
-            
-            // Store the last processed tray
-            lastProcessedTray = trayNumber;
-            
-            // If this is the last tray (tray 3), call the Return to Chef API and redirect
-            if (isLastTray) {
-                notification.innerHTML = `<div class="loading-spinner"></div> Order for Table ${currentTable} processed successfully! Returning to chef...`;
-                
-                // Call the Return to Chef API
-                setTimeout(() => {
-                    callReturnToChefAPI();
-                }, 1000);
-                
-                return;
-            }
-            
-            // Call the Next Table API to get a new table number
-            try {
-                const newTable = await callNextTableAPI(currentTable);
-                
-                // Show success notification
-                notification.innerHTML = `✅ Order for Table ${currentTable} processed successfully!`;
-                
-                // Hide notification and reset after 2 seconds
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                    
-                    // Re-enable button
-                    button.disabled = false;
-                    
-                    // Update table number with the one from the API
-                    tableElement.textContent = `Table ${newTable}`;
-                    
-                    // Remove the processing class after a delay to return to purple
-                    setTimeout(() => {
-                        tray.classList.remove('processing');
-                    }, 500);
-                }, 2000);
-            } catch (error) {
-                console.error("Error in nextTable function:", error);
-                
-                // Show error notification
-                notification.innerHTML = `⚠️ Error processing order. Please try again.`;
-                
-                // Hide notification and reset after 2 seconds
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                    button.disabled = false;
-                    tray.classList.remove('processing');
-                }, 2000);
-            }
-        }
-        
-        // Function to handle "Return to chef" button
-        function returnToChef() {
-            const notification = document.getElementById('notification');
-            notification.innerHTML = '<div class="loading-spinner"></div> Returning to chef view...';
-            notification.classList.add('show');
-            
-            // Call the Return to Chef API
-            callReturnToChefAPI();
-        }
-        
-        // Initialize the page when loaded
-        window.onload = initTables;
+      }
+
+      // Function to handle "Return to chef" button
+      function returnToChef() {
+        const notification = document.getElementById("notification");
+        notification.textContent = "Returning to chef view...";
+        notification.classList.add("show");
+
+        // Call the Return to Chef API
+        callReturnToChefAPI();
+      }
+
+      // Initialize the page when loaded
+      window.onload = initTables;
     </script>
-</body>
+  </body>
 </html>
