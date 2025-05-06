@@ -215,6 +215,26 @@
         grid-column: 1 / -1;
       }
 
+      .return-home-box{
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 10px;
+      }
+
+      .return-home {
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: red;
+        color: white;
+      }
+
       @media (max-width: 768px) {
         .header {
           flex-direction: column;
@@ -243,7 +263,6 @@
           />
         </div>
         <div>
-          <button class="return-btn" onclick="returnHome()">Return Home</button>
           <button class="return-btn" onclick="returnToChef()">
             Return to Chef
           </button>
@@ -252,6 +271,9 @@
 
       <div class="trays-container" id="traysContainer">
         <!-- Trays will be dynamically generated here -->
+      </div>
+      <div class="return-home-box">
+      <button id="return-home" class="return-home" onclick="returnHome()">Return Home</button>
       </div>
     </div>
 
