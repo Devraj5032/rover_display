@@ -41,7 +41,7 @@ app.logger.setLevel(logger.level)
 
 active = 0
 # Optional MySQL support (commented out as in original)
-# import mysql.connector
+import mysql.connector
 
 # ---------- SHUTDOWN HANDLING VARIABLES ----------
 shutdown_event = threading.Event()
@@ -51,13 +51,13 @@ ws_server = None
 # ---------- DATABASE CONNECTIONS ----------
 
 # MySQL connection setup (commented out as in original)
-# def get_db_connection():
-#     return mysql.connector.connect(
-#         host="rovers.cjc26ma2u8ql.us-east-1.rds.amazonaws.com",
-#         user="admin",
-#         password="password",
-#         database="rovers"
-#     )
+def get_db_connection():
+    return mysql.connector.connect(
+        host="rovers.cjc26ma2u8ql.us-east-1.rds.amazonaws.com",
+        user="admin",
+        password="password",
+        database="rovers"
+    )
 
 # ---------- DATABASE INITIALIZATION ----------
 
@@ -239,58 +239,187 @@ def stats():
 
 
 # Health check logging route (commented out as in original)
-# @app.route('/logHealthCheckRPI', methods=['POST'])
-# def log_health_check_rpi():
-#     try:
-#         data = request.get_json()
-#         print("Received data:", data)
-#
-#         if not data:
-#             return jsonify({"message": "No JSON data received"}), 400
-#
-#         # Extract values with fallback defaults (for debugging phase)
-#         rover_id = data.get('rover_id')
-#         rpi_id = data.get('rpi_id')
-#         device_id = data.get('device_id')
-#         check_status = data.get('check_status')
-#         check_value = data.get('check_value')
-#         date_time = data.get('date_time')
-#         location_x = data.get('location_x')
-#         location_y = data.get('location_y')
-#         location_z = data.get('location_z')
-#         remarks = data.get('remarks')
-#
-#         # Basic validation (optional)
-#         required_fields = ['rover_id', 'rpi_id', 'device_id', 'check_status', 'check_value', 'date_time']
-#         for field in required_fields:
-#             if data.get(field) is None:
-#                 return jsonify({"message": f"Missing field: {field}"}), 400
-#
-#         # Insert into database
-#         conn = get_db_connection()
-#         cursor = conn.cursor()
-#
-#         insert_query = """
-#             INSERT INTO loghealthcheckrpi (
-#                 rover_id, rpi_id, device_id, check_status, check_value,
-#                 date_time, location_x, location_y, location_z, remarks
-#             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-#         """
-#
-#         cursor.execute(insert_query, (
-#             rover_id, rpi_id, device_id, check_status, check_value,
-#             date_time, location_x, location_y, location_z, remarks
-#         ))
-#         conn.commit()
-#         cursor.close()
-#         conn.close()
-#
-#         return jsonify({"message": "Health check log inserted successfully"}), 201
-#
-#     except Exception as e:
-#         print("Error:", e)
-#         traceback.print_exc()  # Logs full stack trace
-#         return jsonify({"message": "Server error", "error": str(e)}), 500
+@app.route('/logHealthCheckRPI', methods=['POST'])
+def log_health_check_rpi():
+    try:
+        data = request.get_json()
+        print("Received data:", data)
+
+        if not data:
+            return jsonify({"message": "No JSON data received"}), 400
+
+        # Extract values with fallback defaults (for debugging phase)
+        rover_id = data.get('rover_id')
+        rpi_id = data.get('rpi_id')
+        device_id = data.get('device_id')
+        check_status = data.get('check_status')
+        check_value = data.get('check_value')
+        date_time = data.get('date_time')
+        location_x = data.get('location_x')
+        location_y = data.get('location_y')
+        location_z = data.get('location_z')
+        remarks = data.get('remarks')
+
+        # Basic validation (optional)
+        required_fields = ['rover_id', 'rpi_id', 'device_id', 'check_status', 'check_value', 'date_time']
+        for field in required_fields:
+            if data.get(field) is None:
+                return jsonify({"message": f"Missing field: {field}"}), 400
+
+        # Insert into database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        insert_query = """
+            INSERT INTO loghealthcheckrpi (
+                rover_id, rpi_id, device_id, check_status, check_value,
+                date_time, location_x, location_y, location_z, remarks
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        cursor.execute(insert_query, (
+            rover_id, rpi_id, device_id, check_status, check_value,
+            date_time, location_x, location_y, location_z, remarks
+        ))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"message": "Health check log inserted successfully"}), 201
+
+    except Exception as e:
+        print("Error:", e)
+        traceback.print_exc()  # Logs full stack trace
+        return jsonify({"message": "Server error", "error": str(e)}), 500
+    
+@app.route('/logActivity', methods=['POST'])
+def log_activity():
+    try:
+        data = request.get_json()
+        print("Received log activity data:", data)
+
+        if not data:
+            return jsonify({"message": "No JSON data received"}), 400
+
+        # Required fields
+        activity_id = data.get('activity_id')
+        rover_id = data.get('rover_id')
+        activity_type = data.get('activity_type')
+        created_by = data.get('created_by')
+
+        # Optional fields
+        description = data.get('description')
+        location_x = data.get('location_x')
+        location_y = data.get('location_y')
+        location_z = data.get('location_z')
+        battery_percentage = data.get('battery_percentage')
+        cpu_usage_percentage = data.get('cpu_usage_percentage')
+        memory_usage_percentage = data.get('memory_usage_percentage')
+        temperature = data.get('temperature')
+        created_at = data.get('created_at')
+
+        # Validation
+        required_fields = ['activity_id', 'rover_id', 'activity_type', 'created_by']
+        for field in required_fields:
+            if data.get(field) is None:
+                return jsonify({"message": f"Missing field: {field}"}), 400
+
+        # Insert into DB
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        insert_query = """
+            INSERT INTO log_activity (
+                activity_id, rover_id, activity_type, description,
+                location_x, location_y, location_z,
+                battery_percentage, cpu_usage_percentage, memory_usage_percentage,
+                temperature, created_at, created_by
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        cursor.execute(insert_query, (
+            activity_id, rover_id, activity_type, description,
+            location_x, location_y, location_z,
+            battery_percentage, cpu_usage_percentage, memory_usage_percentage,
+            temperature, created_at, created_by
+        ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"message": "Log activity inserted successfully", "activity_id": activity_id}), 201
+
+    except Exception as e:
+        print("Error in /logActivity:", e)
+        traceback.print_exc()
+        return jsonify({"message": "Server error", "error": str(e)}), 500
+    
+@app.route('/logError', methods=['POST'])
+def log_error():
+    try:
+        data = request.get_json()
+        print("Received error log data:", data)
+
+        if not data:
+            return jsonify({"message": "No JSON data received"}), 400
+
+        # Required fields
+        activity_id = data.get('activity_id')
+        activity_type = data.get('activity_type')
+        created_by = data.get('created_by')
+        error_code = data.get('error_code')
+        rover_id = data.get('rover_id')
+        error_message = data.get('error_message')
+
+        # Optional telemetry/context data
+        location_x = data.get('location_x')
+        location_y = data.get('location_y')
+        location_z = data.get('location_z')
+        battery_percentage = data.get('battery_percentage')
+        cpu_usage_percentage = data.get('cpu_usage_percentage')
+        memory_usage_percentage = data.get('memory_usage_percentage')
+        temperature = data.get('temperature')
+        created_at = data.get('created_at')
+
+        # Basic validation
+        required_fields = ['activity_id', 'activity_type', 'created_by', 'error_code', 'rover_id', 'error_message']
+        for field in required_fields:
+            if data.get(field) is None:
+                return jsonify({"message": f"Missing required field: {field}"}), 400
+
+        # Insert into database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        insert_query = """
+            INSERT INTO error_logs (
+                activity_id, activity_type, created_by,
+                error_code, rover_id, error_message,
+                location_x, location_y, location_z,
+                battery_percentage, cpu_usage_percentage, memory_usage_percentage,
+                temperature, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        cursor.execute(insert_query, (
+            activity_id, activity_type, created_by,
+            error_code, rover_id, error_message,
+            location_x, location_y, location_z,
+            battery_percentage, cpu_usage_percentage, memory_usage_percentage,
+            temperature, created_at
+        ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"message": "Error log inserted successfully"}), 201
+
+    except Exception as e:
+        print("Error in /logError:", e)
+        traceback.print_exc()
+        return jsonify({"message": "Server error", "error": str(e)}), 500
 
 
 # Tray management route
