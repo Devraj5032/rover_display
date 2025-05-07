@@ -4,6 +4,7 @@ from flask_socketio import SocketIO, emit
 import psutil
 import os
 import platform
+import logging
 import time
 import threading
 import sqlite3
@@ -13,6 +14,30 @@ import signal
 import sys
 import traceback
 from websocket_server import WebsocketServer
+from logging.handlers import RotatingFileHandler
+
+# ------------------------ Logging Setup ------------------------
+logger = logging.getLogger("TrayAppLogger")
+logger.setLevel(logging.DEBUG)
+
+file_handler = RotatingFileHandler("tray_app.log", maxBytes=5 * 1024 * 1024, backupCount=2)
+file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+file_handler.setFormatter(file_formatter)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_formatter = logging.Formatter('[%(levelname)s] %(message)s')
+console_handler.setFormatter(console_formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# ------------------------ Flask Setup ------------------------
+app = Flask(__name__)
+CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
+app.logger.handlers = logger.handlers
+app.logger.setLevel(logger.level)
+
 
 active = 0
 # Optional MySQL support (commented out as in original)
