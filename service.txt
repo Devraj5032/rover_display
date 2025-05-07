@@ -1,0 +1,16 @@
+[Unit]
+Description=Tray App Flask Server
+After=network.target
+
+[Service]
+User=dev
+WorkingDirectory=/home/dev/Downloads/rover_display-websocket_ros
+ExecStart=/home/dev/Downloads/rover_display-websocket_ros/.venv/bin/python server.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
