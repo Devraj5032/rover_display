@@ -299,7 +299,7 @@ def get_table_array():
     data = request.get_json()
     trays = data.get("trays", {})
     print(data)
-    tray_array = [f"T{value}" for value in trays.values()]
+    tray_array = [f"T{value}" for value in trays.values() if value is not None]
     order_id = shortuuid.uuid()
 
     try:
@@ -542,7 +542,7 @@ if __name__ == "__main__":
 
     try:
         print("Starting Flask application...")
-        socketio.run(app, debug=False, use_reloader=False)
+        socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt received...")
         # Let the signal handler do its job
