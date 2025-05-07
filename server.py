@@ -43,11 +43,6 @@ active = 0
 # Optional MySQL support (commented out as in original)
 # import mysql.connector
 
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
-
 # ---------- SHUTDOWN HANDLING VARIABLES ----------
 shutdown_event = threading.Event()
 background_threads = []
