@@ -68,6 +68,7 @@ def init_db():
         c.execute(
             """CREATE TABLE IF NOT EXISTS tray_orders (
             id TEXT PRIMARY KEY,
+            robot_id TEXT DEFAULT 'R_001',
             timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')),
             tray1_table_id INTEGER,
             tray1_reached BOOLEAN DEFAULT 0,
@@ -76,7 +77,9 @@ def init_db():
             tray3_table_id INTEGER,
             tray3_reached BOOLEAN DEFAULT 0,
             success BOOLEAN DEFAULT 0,
-            chef_table INTEGER DEFAULT 0
+            chef_table INTEGER DEFAULT 0,
+            total_tables INTEGER DEFAULT 0
+
         )"""
         )
         conn.commit()
@@ -107,31 +110,120 @@ def client_left(client, server):
 def message_received(client, server, message):
     try:
         data = json.loads(message)
-        if data.get("type") == "ping":
-            # Respond to ping with pong
-            server.send_message(client, json.dumps({"type": "pong"}))
-            return
-
         if data.get("type") == "waypoint_result" and data.get("order"):
-            print(f"Received sequence for order {data['order']}: {data['sequence']}")
+            if data["sequence"] is None or len(data["sequence"]) == 0:
+                print(f"Empty sequence for order {data['order']}, no updates made")
+                return
             with sqlite3.connect("tray_orders.db") as conn:
                 c = conn.cursor()
                 c.execute(
-                    "SELECT tray1_table_id, tray2_table_id, tray3_table_id FROM tray_orders WHERE id = ?",
+                    "SELECT total_tables FROM tray_orders WHERE id = ?",
                     (data["order"],),
                 )
                 row = c.fetchone()
+                
                 if row:
-                    tray1_reached = 0 if row[0] in data["sequence"] else 1
-                    tray2_reached = 0 if row[1] in data["sequence"] else 1
-                    tray3_reached = 0 if row[2] in data["sequence"] else 1
+                    total_tables = row[0]
+                    if total_tables == 1:
+                        # For 1 table: 0=tray1, 1=chef
+                        if 0 in data["sequence"]:
+                            tray1_reached = 0
+                        if 1 in data["sequence"]:
+                            chef_table = 0
+                            
+                    elif total_tables == 2:
+                        # For 2 tables: 0=tray1, 1=tray2, 2=chef
+                        if 0 in data["sequence"]:
+                            tray1_reached = 0
+                        if 1 in data["sequence"]:
+                            tray2_reached = 0
+                        if 2 in data["sequence"]:
+                            chef_table = 0
+                            
+                    elif total_tables == 3:
+                        # For 3 tables: 0=tray1, 1=tray2, 2=tray3, 3=chef
+                        if 0 in data["sequence"]:
+                            tray1_reached = 0
+                        if 1 in data["sequence"]:
+                            tray2_reached = 0
+                        if 2 in data["sequence"]:
+                            tray3_reached = 0
+                        if 3 in data["sequence"]:
+                            chef_table = 0
+                    
+                    # Update the database
                     c.execute(
                         """UPDATE tray_orders 
-                                 SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ? 
-                                 WHERE id = ?""",
-                        (tray1_reached, tray2_reached, tray3_reached, data["order"]),
+                            SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ?, chef_table = ? 
+                            WHERE id = ?""",
+                        (tray1_reached, tray2_reached, tray3_reached, chef_table, data["order"]),
                     )
                     conn.commit()
+                    print(f"Updated order {data['order']} with tray statuses: tray1={tray1_reached}, tray2={tray2_reached}, tray3={tray3_reached}, chef={chef_table}")
+        elif data.get("type") == "current_waypoint":
+            try:
+               way_log_activity(1005, message=data["content"])
+            except Exception as e:
+                pass
+
+            with sqlite3.connect("tray_orders.db") as conn:
+                c = conn.cursor()
+                
+                # Get current reached status and total_tables
+                c.execute(
+                    "SELECT tray1_reached, tray2_reached, tray3_reached, chef_table, total_tables FROM tray_orders WHERE id = ?",
+                    (data["order"],),
+                )
+                row = c.fetchone()
+                
+                if row:
+                    tray1_reached, tray2_reached, tray3_reached, chef_table, total_tables = row
+                    
+                    # Get current waypoint from data
+                    current_waypoint = int(data["content"])
+                    
+                    # Update reached status based on total_tables and current waypoint
+                    if total_tables == 1:
+                        # If only 1 table/tray used, waypoint 2 is chef's table
+                        if current_waypoint == 1:
+                            tray1_reached = 1
+                        elif current_waypoint == 2:
+                            chef_table = 1
+                    elif total_tables == 2:
+                        # If 2 tables/trays used, waypoint 3 is chef's table
+                        if current_waypoint == 1:
+                            tray1_reached = 1
+                        elif current_waypoint == 2:
+                            tray2_reached = 1
+                        elif current_waypoint == 3:
+                            chef_table = 1
+                    elif total_tables == 3:
+                        # If all 3 tables/trays used, waypoint 4 is chef's table
+                        if current_waypoint == 1:
+                            tray1_reached = 1
+                        elif current_waypoint == 2:
+                            tray2_reached = 1
+                        elif current_waypoint == 3:
+                            tray3_reached = 1
+                        elif current_waypoint == 4:
+                            chef_table = 1
+                    
+                    # Update the database
+                    c.execute(
+                        """UPDATE tray_orders
+                        SET tray1_reached = ?, tray2_reached = ?, tray3_reached = ?, chef_table = ?
+                        WHERE id = ?""",
+                        (tray1_reached, tray2_reached, tray3_reached, chef_table, data["order"]),
+                    )
+                    conn.commit()
+        elif data.get("type") == "return_to_chef":
+            if data.get("status") == "SUCCEEDED":
+                print(f"canceled waypoint and return_to_chef message for order {data['order']}")
+                way_log_activity(1006, message="cancel_waypoint return to chef")
+            elif data.get("status") == "ABORTED":
+                way_log_error(1006, ecode=207, message="cancel_waypoint return to chef")
+
+
         else:
             print("Unrecognized message type")
     except Exception as e:
@@ -167,8 +259,85 @@ def start_websocket_server():
         except Exception as e:
             print(f"Error closing WebSocket server: {e}")
 
+# ----------- ERROR HANDLING FOR ROS  -----
+import requests
+from datetime import datetime
+ROVER_ID = "R_001"
+RPI_NO = "Rpi_001"
+LOCATION_X = ""
+LOCATION_Y = ""
+LOCATION_Z = ""
+POST_URL = "http://localhost:5000/logHealthCheckRPI"
+ACTIVITY_URL = "http://localhost:5000/logActivity"
+ERROR_URL = "http://localhost:5000/logError"
+IMAGE_SIZE_THRESHOLD_KB = 50
 
-# ---------- SYSTEM STATS LOGIC ----------
+
+def way_log_activity(activity_id, x=None, y=None, z=None, message=None, description=None):
+    # Set activity_type based on inputs
+    if message is None and None not in (x, y, z):
+        activity_type = f"Sent waypoint {x} {y} {z}"
+    elif message is not None:
+        activity_type = message
+    else:
+        activity_type = "Unknown activity"
+
+    # Set description
+    if description is None:
+        description = "All waypoints sent from server to ros"
+
+    payload = {
+        "activity_id": f"act-{activity_id}",
+        "rover_id": ROVER_ID,
+        "activity_type": activity_type,
+        "description": description,
+        "location_x": LOCATION_X,
+        "location_y": LOCATION_Y,
+        "location_z": LOCATION_Z,
+        "battery_percentage": 0.0,
+        "cpu_usage_percentage": 0.0,
+        "memory_usage_percentage": 0.0,
+        "temperature": 0.0,
+        "created_at": datetime.now().isoformat(),
+        "created_by": RPI_NO
+    }
+
+    try:
+        response = requests.post(ACTIVITY_URL, headers={"Content-Type": "application/json"}, json=payload)
+        print(f"✅ Activity Log Sent | Status: {response.status_code} | Message: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to log activity | Error: {e}")
+
+def way_log_error(activity_id, *, ecode=205, x=None, message=None):
+    # If message is not given but x is, use default format
+    if message is None and x is not None:
+        message = f"Not able to reach waypoint {x}"
+    elif message is None:
+        message = "Unknown error occurred"
+
+    payload = {
+        "activity_id": f"act-{activity_id}",
+        "activity_type": "Sensor Malfunction",
+        "created_by": RPI_NO,
+        "error_code": f"E{ecode}",
+        "rover_id": ROVER_ID,
+        "error_message": message,
+        "location_x": LOCATION_X,
+        "location_y": LOCATION_Y,
+        "location_z": LOCATION_Z,
+        "battery_percentage": 0.0,
+        "cpu_usage_percentage": 0.0,
+        "memory_usage_percentage": 0.0,
+        "temperature": 0.0,
+        "created_at": datetime.now().isoformat()
+    }
+
+    try:
+        response = requests.post(ERROR_URL, headers={"Content-Type": "application/json"}, json=payload)
+        print(f"✅ Error Log Sent | Status: {response.status_code} | Message: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to log error | Error: {e}")
+# ---------- SYSTEM STATS LOGIC -----------
 
 
 def get_system_stats():
@@ -429,6 +598,9 @@ def get_table_array():
     trays = data.get("trays", {})
     print(data)
     tray_array = [f"T{value}" for value in trays.values() if value is not None]
+    tray_value = [int(value) for value in trays.values() if value is not None]
+    ACtx, ACTy, ACTz = (tray_value + [0, 0, 0])[:3]
+    total_tables = len(tray_array)
     order_id = shortuuid.uuid()
 
     try:
@@ -436,9 +608,9 @@ def get_table_array():
             c = conn.cursor()
             c.execute(
                 """INSERT INTO tray_orders 
-                         (id, tray1_table_id, tray2_table_id, tray3_table_id) 
-                         VALUES (?, ?, ?, ?)""",
-                (order_id, trays.get("1"), trays.get("2"), trays.get("3")),
+                         (id, tray1_table_id, tray2_table_id, tray3_table_id, total_tables) 
+                         VALUES (?, ?, ?, ?, ?)""",
+                (order_id, trays.get("1"), trays.get("2"), trays.get("3"), total_tables),
             )
             conn.commit()
     except Exception as e:
@@ -451,7 +623,11 @@ def get_table_array():
                                  "type": "waypoint_order",
                                  })
         for client in clients:
-            ws_server.send_message(client, ws_message)
+            try:
+                ws_server.send_message(client, ws_message)
+                way_log_activity(1004, x=ACtx, y=ACTy, z=ACTz)
+            except Exception as e:
+                log_error(1004,ecode=205, message="no waypoints sent from server to ros")    
         print(f"Sent tray order to {len(clients)} WebSocket clients.")
 
     return jsonify({"tray_array": tray_array, "order_id": order_id})
@@ -474,7 +650,11 @@ def return_to_chef():
                     }
                 )
                 for client in clients:
-                    ws_server.send_message(client, ws_message)
+                    try:
+                        ws_server.send_message(client, ws_message)
+                        way_log_activity(1006, message="cancel_waypoint return to chef")
+                    except Exception as e:
+                        log_error(1006,ecode=206, message="no waypoints cancel request sent from server to ros")
                 print(
                     f"Sent table assignment notification to {len(clients)} WebSocket clients"
                 )
@@ -547,7 +727,7 @@ def return_home():
         data = request.get_json()
         order_id = data.get("order_id")
 
-        print(f"Next Table API called for return to chef, order ID {order_id}")
+        print(f"Next Table API called for return to home, order ID {order_id}")
         try:
 
             if ws_server and clients:
