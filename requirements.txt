@@ -1,0 +1,9 @@
+Flask
+flask-cors
+flask-socketio
+psutil
+shortuuid
+websocket-server
+PySide2
+mysql-connector-python
+requests
