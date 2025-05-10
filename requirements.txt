@@ -4,6 +4,6 @@ flask-socketio
 psutil
 shortuuid
 websocket-server
-PySide2
+PySide6
 mysql-connector-python
 requests
