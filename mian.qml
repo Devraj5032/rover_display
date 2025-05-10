@@ -1,6 +1,6 @@
-import QtQuick 2.15
-import QtQuick.Window 2.15
-import QtWebEngine 1.15
+import QtQuick 2.12
+import QtQuick.Window 2.12
+import QtWebEngine 1.7
 
 Window {
     visible: true
@@ -11,6 +11,6 @@ Window {
     WebEngineView {
         id: webview
         anchors.fill: parent
-        url: "http://localhost:5000/"  // 🔁 Replace this with your URL
+        url: "http://localhost:5000/"
     }
 }
