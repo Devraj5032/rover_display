@@ -1,11 +1,10 @@
 import sys
-from PySide2.QtWidgets import QApplication
-from PySide2.QtQml import QQmlApplicationEngine
-from PySide2.QtWebEngineWidgets import QWebEngineView
-from PySide2 import QtWebEngine
+from PySide6.QtWidgets import QApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtWebEngineQuick import QtWebEngineQuick
 
 if __name__ == "__main__":
-    QtWebEngine.QtWebEngine.initialize()
+    QtWebEngineQuick.initialize()
     app = QApplication(sys.argv)
     engine = QQmlApplicationEngine()
     engine.load("main.qml")
@@ -13,4 +12,4 @@ if __name__ == "__main__":
     if not engine.rootObjects():
         sys.exit(-1)
 
-    sys.exit(app.exec_())  # Note: `exec_()` in Qt5
+    sys.exit(app.exec())
